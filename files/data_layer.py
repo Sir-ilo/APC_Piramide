@@ -46,7 +46,8 @@ def assign_categories(ranking_df: pd.DataFrame) -> pd.DataFrame:
 
 # ─── Connection ───────────────────────────────────────────────────────────────
 def get_conn():
-    return st.connection("gsheets", type="GSheetsConnection")
+    from streamlit_gsheets import GSheetsConnection
+    return st.connection("gsheets", type=GSheetsConnection)
 
 
 # ─── Init ─────────────────────────────────────────────────────────────────────
