@@ -31,13 +31,17 @@ inject_all_styles()
 # ── Session defaults ───────────────────────────────────────────────────────────
 ensure_session_defaults()
 
-# ── Google Sheets connection (cached resource) ─────────────────────────────────
+# ── Google Sheets connection + one-time init (cached resource) ────────────────
 @st.cache_resource(show_spinner=False)
 def _conn():
-    return get_conn()
+    """Create connection AND run init exactly once per server lifetime."""
+    import time
+    c = get_conn()
+    time.sleep(2)          # let the connection settle before hitting the API
+    init_all_sheets(c)
+    return c
 
 conn = _conn()
-init_all_sheets(conn)
 
 # ── Auth gate ──────────────────────────────────────────────────────────────────
 if not st.session_state.get("authenticated"):

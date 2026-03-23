@@ -52,8 +52,10 @@ def get_conn():
 
 # ─── Init ─────────────────────────────────────────────────────────────────────
 def _get_gspread_wb():
-    """Open the Spreadsheet using gspread + service account credentials directly."""
+    """Open the Spreadsheet using gspread + service account credentials directly.
+    Retries up to 3 times with backoff on 429 quota errors."""
     import gspread
+    import time
     from google.oauth2.service_account import Credentials
 
     s = st.secrets["connections"]["gsheets"]
@@ -83,7 +85,18 @@ def _get_gspread_wb():
         sid = raw_url.split("/spreadsheets/d/")[1].split("/")[0].split("?")[0].strip()
     else:
         sid = raw_url.strip()
-    return client.open_by_key(sid)
+
+    # Retry up to 3x on quota errors
+    for attempt in range(3):
+        try:
+            return client.open_by_key(sid)
+        except Exception as e:
+            if "429" in str(e) or "RATE_LIMIT" in str(e) or "Quota" in str(e):
+                wait = 15 * (attempt + 1)   # 15s, 30s, 45s
+                time.sleep(wait)
+            else:
+                raise
+    return client.open_by_key(sid)  # final attempt, let it raise if still failing
 
 
 def _ensure_worksheet(wb, sheet_name):
