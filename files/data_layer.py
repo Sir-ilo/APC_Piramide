@@ -131,6 +131,35 @@ def init_all_sheets(conn):
             except Exception as e:
                 st.warning(f"Aviso: não foi possível inicializar sheet '{sheet}': {e}")
 
+    # 4. Always ensure admin user exists (in case teams sheet was created empty)
+    _ensure_admin_exists(conn)
+
+
+def _ensure_admin_exists(conn):
+    """Guarantee the admin row is always present in the teams sheet."""
+    try:
+        df = conn.read(worksheet=SHEET_TEAMS, ttl=0)
+        if df is None:
+            df = pd.DataFrame(columns=TEAMS_COLS)
+        for c in TEAMS_COLS:
+            if c not in df.columns:
+                df[c] = ""
+        if ADMIN_ID not in df["team_id"].astype(str).values:
+            admin_hash = hashlib.sha256("admin2024".encode()).hexdigest()
+            row = {c: "" for c in TEAMS_COLS}
+            row.update({
+                "team_id": ADMIN_ID, "team_name": "Administrador",
+                "player1": "Admin", "player2": "",
+                "password_hash": admin_hash, "is_admin": "TRUE",
+                "photo_url": "", "wins": 0, "losses": 0,
+                "streak": 0, "total_matches": 0,
+                "last_match_date": "", "created_at": _now_iso(),
+            })
+            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+            conn.update(worksheet=SHEET_TEAMS, data=df)
+    except Exception:
+        pass  # will retry on next boot
+
 
 def _seed_teams(df):
     admin_hash = hashlib.sha256("admin2024".encode()).hexdigest()
