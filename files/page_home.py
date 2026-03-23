@@ -66,7 +66,7 @@ def render_home(data: dict, conn):
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🏅 Ver Ranking Completo", use_container_width=True, key="home_ranking"):
+        if st.button("🏅 Ver Ranking Completo", width='stretch', key="home_ranking"):
             nav_to("ranking")
     with col2:
         pass
@@ -91,13 +91,13 @@ def render_home(data: dict, conn):
     section_header("Acções Rápidas", "⚡")
     c1, c2, c3 = st.columns(3)
     with c1:
-        if st.button("⚔️ Novo Desafio", use_container_width=True, key="home_challenge"):
+        if st.button("⚔️ Novo Desafio", width='stretch', key="home_challenge"):
             nav_to("challenges")
     with c2:
-        if st.button("📝 Registar Resultado", use_container_width=True, key="home_result"):
+        if st.button("📝 Registar Resultado", width='stretch', key="home_result"):
             nav_to("results")
     with c3:
-        if st.button("👥 Gerir Equipa", use_container_width=True, key="home_team"):
+        if st.button("👥 Gerir Equipa", width='stretch', key="home_team"):
             nav_to("teams")
 
     # ── My stats mini ─────────────────────────────────────────────────────────

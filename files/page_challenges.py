@@ -48,14 +48,14 @@ def render_challenges(data: dict, conn):
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button(f"✅ Confirmar", key=f"conf_{m['match_id']}",
-                                 use_container_width=True):
+                                 width='stretch'):
                         if confirm_match(conn, data, m["match_id"], my_id):
                             st.success("Resultado confirmado! Ranking actualizado.")
                             st.balloons()
                             st.rerun()
                 with c2:
                     if st.button(f"❌ Contestar", key=f"cont_{m['match_id']}",
-                                 use_container_width=True):
+                                 width='stretch'):
                         contest_match(conn, data, m["match_id"])
                         st.warning("Resultado contestado. Admin será notificado.")
                         st.rerun()
@@ -125,7 +125,7 @@ def render_challenges(data: dict, conn):
         if not ok:
             st.error(reason)
         else:
-            if st.button("⚔️ Enviar Desafio", key="send_ch", use_container_width=True):
+            if st.button("⚔️ Enviar Desafio", key="send_ch", width='stretch'):
                 trunfo_used = "salto" if use_salto else ""
                 if use_salto:
                     if not use_trunfo(conn, data, my_id, "salto"):
@@ -222,12 +222,12 @@ def render_challenges(data: dict, conn):
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button("✅ Aceitar", key=f"acc_{c['challenge_id']}",
-                                 use_container_width=True):
+                                 width='stretch'):
                         update_challenge_status(conn, data, c["challenge_id"], "accepted")
                         st.rerun()
                 with c2:
                     if st.button("❌ Recusar", key=f"rej_{c['challenge_id']}",
-                                 use_container_width=True):
+                                 width='stretch'):
                         update_challenge_status(conn, data, c["challenge_id"], "rejected")
                         st.rerun()
     else:

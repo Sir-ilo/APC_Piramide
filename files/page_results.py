@@ -88,7 +88,7 @@ def render_results(data: dict, conn):
             wo_col1, wo_col2 = st.columns(2)
             wo_a = wo_col1.form_submit_button(f"❌ W.O. {a_name}")
             wo_b = wo_col2.form_submit_button(f"❌ W.O. {b_name}")
-            submitted = st.form_submit_button("✅ Submeter Resultado", use_container_width=True)
+            submitted = st.form_submit_button("✅ Submeter Resultado", width='stretch')
 
         if wo_a or wo_b:
             score_a = 0 if wo_a else 99

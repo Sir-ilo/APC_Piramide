@@ -41,7 +41,7 @@ def render_login(conn):
                                 key="login_tid").strip()
             pw  = st.text_input("Password", type="password", key="login_pw")
 
-            if st.button("▶  Entrar", use_container_width=True, key="login_btn"):
+            if st.button("▶  Entrar", width='stretch', key="login_btn"):
                 data = load_all(conn)
                 user = verify_login(data["teams"], tid, pw)
                 if user:

@@ -35,7 +35,7 @@ def render_navbar():
                     f"{icon}",
                     key=f"nav_{page_id}",
                     help=label,
-                    use_container_width=True,
+                    width='stretch',
                 ):
                     st.session_state.active_page = page_id
                     st.rerun()

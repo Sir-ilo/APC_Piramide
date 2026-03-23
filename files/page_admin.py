@@ -36,7 +36,7 @@ def render_admin(data: dict, conn):
                 p1 = st.text_input("Jogador 1")
                 p2 = st.text_input("Jogador 2")
                 pw = st.text_input("Password", type="password")
-            ok = st.form_submit_button("✅ Criar Equipa", use_container_width=True)
+            ok = st.form_submit_button("✅ Criar Equipa", width='stretch')
         if ok:
             errs = []
             if not tid: errs.append("ID vazio")
@@ -73,7 +73,7 @@ def render_admin(data: dict, conn):
                 rst_grd  = st.checkbox("Reset Guardião (Lider_Desde)")
                 rst_imm  = st.checkbox("Reset Imunidade")
                 clmb     = st.checkbox("Marcar como Pronto a Subir ⚔️")
-                apply    = st.form_submit_button("💾 Guardar", use_container_width=True)
+                apply    = st.form_submit_button("💾 Guardar", width='stretch')
 
             if apply:
                 rk = data["ranking"].copy()
@@ -96,7 +96,7 @@ def render_admin(data: dict, conn):
             with st.form("rst_pw_f"):
                 p_sel  = st.selectbox("Equipa", list(teams_list.keys()), key="adm_pw_sel")
                 new_pw = st.text_input("Nova Password", type="password")
-                rst_ok = st.form_submit_button("Resetar Password", use_container_width=True)
+                rst_ok = st.form_submit_button("Resetar Password", width='stretch')
             if rst_ok and new_pw:
                 import hashlib
                 ph   = hashlib.sha256(new_pw.encode()).hexdigest()
@@ -121,7 +121,7 @@ def render_admin(data: dict, conn):
                 new_d = tc1.number_input("Desforra", 0, 99, d0)
                 new_s = tc2.number_input("Salto",    0, 99, s0)
                 new_e = tc3.number_input("Escudo",   0, 99, e0)
-                tr_ok = st.form_submit_button("Guardar Trunfos", use_container_width=True)
+                tr_ok = st.form_submit_button("Guardar Trunfos", width='stretch')
             if tr_ok:
                 trf = trunfos.copy()
                 mask = trf["team_id"] == tr_sel
@@ -157,12 +157,12 @@ def render_admin(data: dict, conn):
                 ca, cb = st.columns(2)
                 with ca:
                     if st.button("✅ Aprovar", key=f"apr_{e['edit_id']}",
-                                 use_container_width=True):
+                                 width='stretch'):
                         approve_edit(conn, data, e["edit_id"])
                         st.rerun()
                 with cb:
                     if st.button("❌ Rejeitar", key=f"rej_e_{e['edit_id']}",
-                                 use_container_width=True):
+                                 width='stretch'):
                         reject_edit(conn, data, e["edit_id"])
                         st.rerun()
 
@@ -186,7 +186,7 @@ def render_admin(data: dict, conn):
                 </div>
                 """, unsafe_allow_html=True)
                 if st.button(f"✅ Override Aceitar ({m['match_id']})", key=f"ov_{m['match_id']}",
-                             use_container_width=True):
+                             width='stretch'):
                     admin_override_match(conn, data, m["match_id"])
                     st.success("Resultado aceite pelo Admin.")
                     st.balloons()
