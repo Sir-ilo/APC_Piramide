@@ -35,7 +35,7 @@ def is_immune(row) -> bool:
     return dt is not None and now_utc() < dt
 
 
-def guardian_remaining(row) -> timedelta | None:
+def guardian_remaining(row):
     dt = parse_iso(str(row.get("guardian_since", "")))
     if dt is None:
         return None
@@ -92,7 +92,7 @@ def calc_wo_points(wo_team_is_challenger: bool) -> tuple[int, int]:
     return PTS_WIN_CHALLENGER, PTS_WO
 
 
-def determine_winner_sets(s1a, s1b, s2a, s2b, s3a=None, s3b=None) -> str | None:
+def determine_winner_sets(s1a, s1b, s2a, s2b, s3a=None, s3b=None):
     """'A' | 'B' | None if invalid."""
     try:
         sets_a = (1 if int(s1a) > int(s1b) else 0) + (1 if int(s2a) > int(s2b) else 0)
