@@ -47,19 +47,7 @@ def assign_categories(ranking_df: pd.DataFrame) -> pd.DataFrame:
 # ─── Connection ───────────────────────────────────────────────────────────────
 def get_conn():
     from streamlit_gsheets import GSheetsConnection
-    # Read spreadsheet value from secrets — supports both full URL and bare ID
-    secrets = st.secrets.get("connections", {}).get("gsheets", {})
-    raw = str(secrets.get("spreadsheet", ""))
-    # Extract bare ID if a full URL was provided
-    if "/spreadsheets/d/" in raw:
-        spreadsheet_id = raw.split("/spreadsheets/d/")[1].split("/")[0].strip()
-    else:
-        spreadsheet_id = raw.strip()
-    return st.connection(
-        "gsheets",
-        type=GSheetsConnection,
-        spreadsheet=spreadsheet_id,
-    )
+    return st.connection("gsheets", type=GSheetsConnection)
  
  
 # ─── Init ─────────────────────────────────────────────────────────────────────
