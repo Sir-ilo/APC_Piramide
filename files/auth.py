@@ -37,8 +37,8 @@ def render_login(conn):
                 "border-radius:16px;padding:28px 24px;'>",
                 unsafe_allow_html=True,
             )
-            tid = st.text_input("ID da Equipa", placeholder="ex: EQ001",
-                                key="login_tid").strip().upper()
+            tid = st.text_input("ID da Equipa", placeholder="ex: EQ001 ou admin",
+                                key="login_tid").strip()
             pw  = st.text_input("Password", type="password", key="login_pw")
 
             if st.button("▶  Entrar", use_container_width=True, key="login_btn"):
