@@ -16,33 +16,35 @@ def render_navbar():
     if is_adm:
         items.append(("admin", "🔑", "Admin"))
 
-    # Build HTML nav — clicking triggers a query param change
-    nav_html = '<div class="navbar-fixed">'
-    for page_id, icon, label in items:
-        is_act = (page_id == active)
-        cls    = "nav-btn active" if is_act else "nav-btn"
-        dot    = '<div class="nav-dot"></div>' if is_act else ""
-        nav_html += (
-            f'<div class="{cls}" onclick="window.location.href=\'?nav={page_id}\'">'
-            f'  <span class="nav-icon">{icon}</span>'
-            f'  <span class="nav-label">{label}</span>'
-            f'  {dot}'
-            f'</div>'
-        )
-    nav_html += '</div>'
-    st.markdown(nav_html, unsafe_allow_html=True)
-
-    # React to query param
-    params = st.query_params
-    nav_param = params.get("nav")
-    if nav_param and nav_param != active:
-        # Admin guard
-        if nav_param == "admin" and not is_adm:
-            pass
-        else:
-            st.session_state.active_page = nav_param
-            st.query_params.clear()
-            st.rerun()
+    st.markdown("---")
+    cols = st.columns(len(items))
+    for i, (page_id, icon, label) in enumerate(items):
+        with cols[i]:
+            is_act = (page_id == active)
+            # Highlight active tab with different styling via markdown
+            if is_act:
+                st.markdown(
+                    f"<div style='text-align:center;padding:4px 0;border-bottom:2px solid var(--cyan,#00E5FF);'>"
+                    f"<span style='font-size:1.4rem;'>{icon}</span><br>"
+                    f"<span style='font-size:0.62rem;color:#00E5FF;font-weight:700;"
+                    f"letter-spacing:.08em;text-transform:uppercase;'>{label}</span></div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                if st.button(
+                    f"{icon}",
+                    key=f"nav_{page_id}",
+                    help=label,
+                    use_container_width=True,
+                ):
+                    st.session_state.active_page = page_id
+                    st.rerun()
+                st.markdown(
+                    f"<div style='text-align:center;margin-top:-12px;"
+                    f"font-size:0.62rem;color:#6B7A99;letter-spacing:.08em;"
+                    f"text-transform:uppercase;'>{label}</div>",
+                    unsafe_allow_html=True,
+                )
 
 
 # ─── Help modal ───────────────────────────────────────────────────────────────
@@ -68,7 +70,7 @@ def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False) -> str:
     name   = row.get("team_name", "—")
     p1     = row.get("player1", "")
     p2     = row.get("player2", "")
-    pts    = int(row.get("points", 0))
+    pts    = int(row.get("points", 0) or 0)
     photo  = row.get("photo_url", "") or ""
 
     avatar = (f'<img src="{photo}" class="rank-avatar" style="border-color:{color};">'
@@ -95,7 +97,7 @@ def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False) -> str:
 </div>"""
 
 
-# ─── Quick-action buttons ─────────────────────────────────────────────────────
+# ─── Quick navigation helper ──────────────────────────────────────────────────
 def nav_to(page: str):
     st.session_state.active_page = page
     st.rerun()
@@ -136,7 +138,7 @@ REGULAMENTO_MD = """
 | Derrota | +1 |
 | W.O. | -10 |
 | Vitória c/ Suplente | +2 |
-| Inatividade (15 dias) | -5 e desce 2 posições |
+| Inatividade 15 dias | -5 e desce 2 posições |
 
 ### 5. Validação de Resultados
 1. A Equipa A submete o resultado.
