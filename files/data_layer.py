@@ -112,51 +112,78 @@ def init_all_sheets(conn):
         (SHEET_PENDING,    PENDING_COLS,    None),
     ]
 
+    import time
+
     for sheet, cols, seed_fn in sheets_config:
-        # 1. Create the tab if missing
+        # 1. Create the tab if missing (gspread direct — no quota cost via Sheets API)
         _ensure_worksheet(wb, sheet)
-        # 2. Check if it has data already
+
+    # Small pause after creating all tabs before reading
+    time.sleep(3)
+
+    for sheet, cols, seed_fn in sheets_config:
+        # 2. Check if sheet has data
         try:
-            df = conn.read(worksheet=sheet, ttl=0)
-            has_data = (df is not None and not df.empty and len(df.columns) > 0)
+            ws = wb.worksheet(sheet)
+            all_vals = ws.get_all_values()
+            has_data = len(all_vals) > 1  # more than just header row
         except Exception:
             has_data = False
-        # 3. Seed with headers (+ default rows) if empty
+
+        # 3. Seed if empty — write directly via gspread (single API call per sheet)
         if not has_data:
             empty = pd.DataFrame(columns=cols)
             if seed_fn:
                 empty = seed_fn(empty)
             try:
-                conn.update(worksheet=sheet, data=empty)
+                ws = wb.worksheet(sheet)
+                # Write header + data rows in one call
+                rows = [empty.columns.tolist()] + empty.values.tolist()
+                ws.clear()
+                ws.update(rows, value_input_option="RAW")
             except Exception as e:
-                st.warning(f"Aviso: não foi possível inicializar sheet '{sheet}': {e}")
+                st.warning(f"Aviso: sheet '{sheet}': {e}")
 
-    # 4. Always ensure admin user exists (in case teams sheet was created empty)
+        time.sleep(1)  # 1 second between sheets — stays well under 60 req/min
+
+    # 4. Always ensure admin user exists
     _ensure_admin_exists(conn)
 
 
 def _ensure_admin_exists(conn):
-    """Guarantee the admin row is always present in the teams sheet."""
+    """Guarantee the admin row is always present in the teams sheet.
+    Uses gspread directly to avoid extra conn.read quota hits."""
     try:
-        df = conn.read(worksheet=SHEET_TEAMS, ttl=0)
-        if df is None:
-            df = pd.DataFrame(columns=TEAMS_COLS)
-        for c in TEAMS_COLS:
-            if c not in df.columns:
-                df[c] = ""
-        if ADMIN_ID not in df["team_id"].astype(str).values:
+        wb  = _get_gspread_wb()
+        ws  = wb.worksheet(SHEET_TEAMS)
+        all_vals = ws.get_all_values()
+
+        if not all_vals:
+            return  # sheet is completely empty — seed_fn will handle it
+
+        headers  = all_vals[0]
+        rows     = all_vals[1:]
+
+        # Find team_id column index
+        if "team_id" not in headers:
+            return
+        tid_idx = headers.index("team_id")
+        existing_ids = [r[tid_idx] for r in rows if len(r) > tid_idx]
+
+        if ADMIN_ID not in existing_ids:
             admin_hash = hashlib.sha256("admin2024".encode()).hexdigest()
-            row = {c: "" for c in TEAMS_COLS}
-            row.update({
+            # Build row aligned to headers
+            row_dict = {c: "" for c in headers}
+            row_dict.update({
                 "team_id": ADMIN_ID, "team_name": "Administrador",
                 "player1": "Admin", "player2": "",
                 "password_hash": admin_hash, "is_admin": "TRUE",
-                "photo_url": "", "wins": 0, "losses": 0,
-                "streak": 0, "total_matches": 0,
+                "photo_url": "", "wins": "0", "losses": "0",
+                "streak": "0", "total_matches": "0",
                 "last_match_date": "", "created_at": _now_iso(),
             })
-            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-            conn.update(worksheet=SHEET_TEAMS, data=df)
+            new_row = [str(row_dict.get(h, "")) for h in headers]
+            ws.append_row(new_row, value_input_option="RAW")
     except Exception:
         pass  # will retry on next boot
 
