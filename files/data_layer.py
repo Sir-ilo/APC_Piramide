@@ -51,30 +51,39 @@ def get_conn():
 
 
 # ─── Init ─────────────────────────────────────────────────────────────────────
-def _get_gspread_wb(conn):
-    """Get the raw gspread Spreadsheet object via the underlying client."""
-    # st-gsheets-connection exposes the gspread client as conn._instance.client
-    # or conn.client depending on version — try both
-    raw = None
-    try:
-        raw = conn._instance.client
-    except Exception:
-        pass
-    if raw is None:
-        try:
-            raw = conn.client
-        except Exception:
-            pass
-    if raw is None:
-        raise RuntimeError("Cannot access gspread client from connection")
+def _get_gspread_wb():
+    """Open the Spreadsheet using gspread + service account credentials directly."""
+    import gspread
+    from google.oauth2.service_account import Credentials
 
-    raw_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-    # Extract bare spreadsheet ID from any URL format
+    s = st.secrets["connections"]["gsheets"]
+
+    creds = Credentials.from_service_account_info(
+        {
+            "type":                        s["type"],
+            "project_id":                  s["project_id"],
+            "private_key_id":              s["private_key_id"],
+            "private_key":                 s["private_key"],
+            "client_email":                s["client_email"],
+            "client_id":                   s["client_id"],
+            "auth_uri":                    s["auth_uri"],
+            "token_uri":                   s["token_uri"],
+            "auth_provider_x509_cert_url": s["auth_provider_x509_cert_url"],
+            "client_x509_cert_url":        s["client_x509_cert_url"],
+        },
+        scopes=[
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ],
+    )
+    client = gspread.authorize(creds)
+
+    raw_url = str(s["spreadsheet"])
     if "/spreadsheets/d/" in raw_url:
         sid = raw_url.split("/spreadsheets/d/")[1].split("/")[0].split("?")[0].strip()
     else:
         sid = raw_url.strip()
-    return raw.open_by_key(sid)
+    return client.open_by_key(sid)
 
 
 def _ensure_worksheet(wb, sheet_name):
@@ -89,7 +98,7 @@ def _ensure_worksheet(wb, sheet_name):
 def init_all_sheets(conn):
     """Ensure all required worksheet tabs exist, then seed empty ones."""
     try:
-        wb = _get_gspread_wb(conn)
+        wb = _get_gspread_wb()
     except Exception as e:
         st.error(f"Não foi possível aceder à Spreadsheet: {e}")
         st.stop()
