@@ -241,7 +241,9 @@ def render_admin(data: dict, conn):
 
             if mr_ok:
                 from logic import calc_points
-                from data_layer import save_ranking, save_matches, _now_iso
+                from data_layer import save_ranking, save_matches
+                from datetime import datetime, timezone
+                def _now_iso(): return datetime.now(timezone.utc).isoformat()
                 import pandas as _pd
 
                 a_id   = team_list[team_a_lbl]
@@ -260,7 +262,7 @@ def render_admin(data: dict, conn):
                     # Save match
                     matches = data["matches"].copy()
                     mid = f"M{len(matches)+1:04d}"
-                    from data_layer import MATCHES_COLS
+                    from config import MATCHES_COLS
                     row = {c: "" for c in MATCHES_COLS}
                     row.update({
                         "match_id": mid, "timestamp": _now_iso(),
@@ -300,8 +302,8 @@ def render_admin(data: dict, conn):
     # ── 4. Pending edits ──────────────────────────────────────────────────────
     with tab4:
         section_header("Edições Pendentes", "✏️")
-        pending = data["pending"]
-        pend_open = pending[pending["status"] == "pending"] if not pending.empty else pd.DataFrame()
+        pending_df = data["pending"].copy()
+        pend_open = pending_df[pending_df["status"] == "pending"] if not pending_df.empty else pd.DataFrame()
         if pend_open.empty:
             st.info("Sem pedidos pendentes.")
         else:
