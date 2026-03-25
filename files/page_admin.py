@@ -15,9 +15,10 @@ from config import CATEGORY_SIZES
 def render_admin(data: dict, conn):
     st.markdown("## 🔑 Super Admin Panel")
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "➕ Nova Equipa",
         "📊 Editar Ranking",
+        "🃏 Trunfos & Stats",
         "✏️ Edits Pendentes",
         "⚖️ Contestações",
         "🗃️ Dados Raw",
@@ -139,8 +140,165 @@ def render_admin(data: dict, conn):
                 save_trunfos(conn, trf)
                 st.success("Trunfos actualizados!")
 
-    # ── 3. Pending edits ──────────────────────────────────────────────────────
+    # ── 3. Trunfos & Stats manual edit ──────────────────────────────────────
     with tab3:
+        section_header("Editar Trunfos & Estatísticas", "🃏")
+        trunfos = data["trunfos"]
+        teams_t = data["teams"]
+
+        team_opts = {f"{r['team_id']} — {r['team_name']}": r["team_id"]
+                     for _, r in teams_t.iterrows() if r["team_id"] != "admin"}
+        if not team_opts:
+            st.info("Sem equipas.")
+        else:
+            sel_lbl = st.selectbox("Equipa", list(team_opts.keys()), key="adm_tr2_sel")
+            sel_id  = team_opts[sel_lbl]
+
+            # Current trunfos
+            tr_row  = trunfos[trunfos["team_id"] == sel_id]
+            d0 = int(float(tr_row["desforra_qty"].values[0])) if not tr_row.empty else 0
+            s0 = int(float(tr_row["salto_qty"].values[0]))    if not tr_row.empty else 0
+            e0 = int(float(tr_row["escudo_qty"].values[0]))   if not tr_row.empty else 0
+
+            # Current stats
+            t_row = teams_t[teams_t["team_id"] == sel_id]
+            w0  = int(float(t_row["wins"].values[0]))          if not t_row.empty else 0
+            l0  = int(float(t_row["losses"].values[0]))        if not t_row.empty else 0
+            s0s = int(float(t_row["streak"].values[0]))        if not t_row.empty else 0
+            tm0 = int(float(t_row["total_matches"].values[0])) if not t_row.empty else 0
+
+            col_tr, col_st = st.columns(2)
+            with col_tr:
+                st.markdown("**🃏 Trunfos**")
+                with st.form("adm_tr_form"):
+                    new_d = st.number_input("🔄 Desforra",       0, 99, d0)
+                    new_s = st.number_input("🦅 Salto de Fé",    0, 99, s0)
+                    new_e = st.number_input("🛡️ Escudo Platina", 0, 99, e0)
+                    rst_month = st.checkbox("Reset uso mensal (permitir usar este mês)")
+                    tr_ok = st.form_submit_button("💾 Guardar Trunfos")
+                if tr_ok:
+                    trf = trunfos.copy()
+                    mask = trf["team_id"] == sel_id
+                    if mask.any():
+                        trf.loc[mask, "desforra_qty"] = new_d
+                        trf.loc[mask, "salto_qty"]    = new_s
+                        trf.loc[mask, "escudo_qty"]   = new_e
+                        if rst_month:
+                            trf.loc[mask, "last_trunfo_month"] = ""
+                    else:
+                        import pandas as pd
+                        trf = pd.concat([trf, pd.DataFrame([{
+                            "team_id": sel_id, "desforra_qty": new_d,
+                            "salto_qty": new_s, "escudo_qty": new_e,
+                            "last_trunfo_month": "",
+                        }])], ignore_index=True)
+                    save_trunfos(conn, trf)
+                    st.success("✅ Trunfos actualizados!")
+                    st.rerun()
+
+            with col_st:
+                st.markdown("**📊 Estatísticas**")
+                with st.form("adm_st_form"):
+                    new_w  = st.number_input("Vitórias",     0, 999, w0)
+                    new_l  = st.number_input("Derrotas",     0, 999, l0)
+                    new_str= st.number_input("Streak atual", 0, 999, s0s)
+                    new_tm = st.number_input("Total Jogos",  0, 999, tm0)
+                    st_ok  = st.form_submit_button("💾 Guardar Stats")
+                if st_ok:
+                    tms = teams_t.copy()
+                    mask = tms["team_id"] == sel_id
+                    tms.loc[mask, "wins"]          = new_w
+                    tms.loc[mask, "losses"]        = new_l
+                    tms.loc[mask, "streak"]        = new_str
+                    tms.loc[mask, "total_matches"] = new_tm
+                    save_teams(conn, tms)
+                    st.success("✅ Estatísticas actualizadas!")
+                    st.rerun()
+
+        # ── Manual result entry ───────────────────────────────────────────────
+        st.markdown("---")
+        section_header("Lançar Resultado Manual", "📝")
+        st.caption("Para corrigir ou inserir resultados sem passar pelo fluxo normal.")
+        ranking_a = assign_categories(data["ranking"].copy())
+        team_list = {f"{r['team_id']} — {r['team_name']}": r["team_id"]
+                     for _, r in ranking_a.iterrows() if r["team_id"] != "admin"}
+        if len(team_list) >= 2:
+            with st.form("adm_manual_result"):
+                mc1, mc2 = st.columns(2)
+                with mc1:
+                    team_a_lbl = st.selectbox("Desafiante", list(team_list.keys()), key="mr_a")
+                with mc2:
+                    team_b_lbl = st.selectbox("Defensor",   list(team_list.keys()), key="mr_b",
+                                               index=min(1, len(team_list)-1))
+                sc1, sc2 = st.columns(2)
+                with sc1:
+                    score_a = st.number_input("Sets ganhos Desafiante", 0, 3, 2)
+                with sc2:
+                    score_b = st.number_input("Sets ganhos Defensor", 0, 3, 0)
+                suplente = st.checkbox("Uso de suplente")
+                note     = st.text_input("Nota (opcional)")
+                mr_ok    = st.form_submit_button("✅ Registar Resultado Manual")
+
+            if mr_ok:
+                from logic import calc_points
+                from data_layer import save_ranking, save_matches, _now_iso
+                import pandas as _pd
+
+                a_id   = team_list[team_a_lbl]
+                b_id   = team_list[team_b_lbl]
+                a_name = team_a_lbl.split(" — ",1)[1]
+                b_name = team_b_lbl.split(" — ",1)[1]
+
+                if a_id == b_id:
+                    st.error("Desafiante e defensor têm de ser diferentes.")
+                else:
+                    winner_id = a_id if score_a > score_b else b_id
+                    loser_id  = b_id if score_a > score_b else a_id
+                    is_ch     = (winner_id == a_id)
+                    pts_w, pts_l = calc_points(is_challenger=is_ch, suplente=suplente)
+
+                    # Save match
+                    matches = data["matches"].copy()
+                    mid = f"M{len(matches)+1:04d}"
+                    from data_layer import MATCHES_COLS
+                    row = {c: "" for c in MATCHES_COLS}
+                    row.update({
+                        "match_id": mid, "timestamp": _now_iso(),
+                        "team_a_id": a_id, "team_a_name": a_name,
+                        "team_b_id": b_id, "team_b_name": b_name,
+                        "score_a": score_a, "score_b": score_b,
+                        "winner_id": winner_id, "loser_id": loser_id,
+                        "pts_winner": pts_w, "pts_loser": pts_l,
+                        "suplente_used": str(suplente),
+                        "validation_status": "admin_override",
+                        "submitted_by": "admin", "confirmed_by": "admin",
+                    })
+                    matches = _pd.concat([matches, _pd.DataFrame([row])], ignore_index=True)
+                    save_matches(conn, matches)
+
+                    # Update ranking points + swap if challenger won
+                    ranking_u = data["ranking"].copy()
+                    for tid, pts in [(winner_id, pts_w),(loser_id, pts_l)]:
+                        mask = ranking_u["team_id"] == tid
+                        cur  = int(float(ranking_u.loc[mask,"points"].values[0] or 0))
+                        ranking_u.loc[mask, "points"] = max(0, cur + pts)
+                        ranking_u.loc[mask, "prev_position"] = ranking_u.loc[mask,"position"]
+                    if winner_id == a_id:
+                        ch_m  = ranking_u["team_id"] == a_id
+                        def_m = ranking_u["team_id"] == b_id
+                        if ch_m.any() and def_m.any():
+                            cp = int(float(ranking_u.loc[ch_m,"position"].values[0]))
+                            dp = int(float(ranking_u.loc[def_m,"position"].values[0]))
+                            if cp > dp:
+                                ranking_u.loc[ch_m,  "position"] = dp
+                                ranking_u.loc[def_m, "position"] = cp
+                    save_ranking(conn, ranking_u)
+                    st.success(f"✅ Resultado manual registado! Vencedor: {a_name if winner_id==a_id else b_name}")
+                    st.balloons()
+                    st.rerun()
+
+    # ── 4. Pending edits ──────────────────────────────────────────────────────
+    with tab4:
         section_header("Edições Pendentes", "✏️")
         pending = data["pending"]
         pend_open = pending[pending["status"] == "pending"] if not pending.empty else pd.DataFrame()
@@ -168,7 +326,7 @@ def render_admin(data: dict, conn):
                         st.rerun()
 
     # ── 4. Contests ───────────────────────────────────────────────────────────
-    with tab4:
+    with tab5:
         section_header("Resultados Contestados", "⚖️")
         matches = data["matches"]
         contested = matches[matches["validation_status"] == "contested"] if not matches.empty else pd.DataFrame()
@@ -194,14 +352,14 @@ def render_admin(data: dict, conn):
                     st.rerun()
 
     # ── 5. Raw data ───────────────────────────────────────────────────────────
-    with tab5:
+    with tab6:
         section_header("Dados Raw (Read-Only)", "🗃️")
         for name, df in data.items():
             with st.expander(f"📄 {name} ({len(df)} linhas)"):
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
     # ── 6. Seed torneio de abertura ───────────────────────────────────────────
-    with tab6:
+    with tab7:
         _render_seed_tab(conn)
 
 

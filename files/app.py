@@ -23,6 +23,7 @@ from page_challenges import render_challenges
 from page_teams import render_teams
 from page_results import render_results
 from page_admin import render_admin
+from page_team_detail import render_team_detail
 from components import render_navbar, render_help_modal
 
 # ── Styles (must come before any st.markdown) ──────────────────────────────────
@@ -74,7 +75,10 @@ with top_right:
 # ── Active page routing ────────────────────────────────────────────────────────
 active = st.session_state.get("active_page", "home")
 
-if active == "home":
+# Team detail overlay — takes priority over any page
+if st.session_state.get("view_team_id"):
+    render_team_detail(data, conn, st.session_state["view_team_id"])
+elif active == "home":
     render_home(data, conn)
 elif active == "ranking":
     render_ranking(data, conn)
