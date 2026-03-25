@@ -9,6 +9,14 @@ from logic import is_immune, guardian_remaining, format_guardian_timer
 from components import section_header, rank_card_html
 from config import LEVEL_COLORS
 
+def _safe_int(val, default=0):
+    try:
+        return int(float(str(val).strip() or default))
+    except (ValueError, TypeError):
+        return default
+
+
+
 
 def render_teams(data: dict, conn):
     my_id   = st.session_state.team_id
@@ -29,8 +37,8 @@ def render_teams(data: dict, conn):
         r = my_rank.iloc[0] if not my_rank.empty else None
         cat   = str(r["category"]) if r is not None else "—"
         color = LEVEL_COLORS.get(cat, "#aaa")
-        pos   = int(r["position"] or 0) if r is not None else 0
-        pts   = int(r["points"]   or 0) if r is not None else 0
+        pos   = _safe_int(r["position"]) if r is not None else 0
+        pts   = _safe_int(r["points"]   or 0) if r is not None else 0
         photo = str(t.get("photo_url","") or "")
 
         # Guardian status
