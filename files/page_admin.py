@@ -244,8 +244,6 @@ def render_admin(data: dict, conn):
                 from data_layer import save_ranking, save_matches
                 from datetime import datetime, timezone
                 def _now_iso(): return datetime.now(timezone.utc).isoformat()
-                import pandas as _pd
-
                 a_id   = team_list[team_a_lbl]
                 b_id   = team_list[team_b_lbl]
                 a_name = team_a_lbl.split(" — ",1)[1]
@@ -275,7 +273,7 @@ def render_admin(data: dict, conn):
                         "validation_status": "admin_override",
                         "submitted_by": "admin", "confirmed_by": "admin",
                     })
-                    matches = _pd.concat([matches, _pd.DataFrame([row])], ignore_index=True)
+                    matches = pd.concat([matches, pd.DataFrame([row])], ignore_index=True)
                     save_matches(conn, matches)
 
                     # Update ranking points + swap if challenger won
