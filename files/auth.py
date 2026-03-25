@@ -22,9 +22,20 @@ def ensure_session_defaults():
 
 
 def render_login(conn):
-    st.markdown("""
+    # Logo / club image — place your logo at files/logo.png in the repo
+    import os, base64
+    logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as f:
+            logo_b64 = base64.b64encode(f.read()).decode()
+        logo_html = (f'<img src="data:image/png;base64,{logo_b64}" '                     f'style="width:110px;border-radius:16px;margin-bottom:10px;">')
+    else:
+        logo_html = '<div style="font-size:3rem;margin-bottom:10px;">🏆</div>'
+
+    st.markdown(f"""
     <div class="login-container">
-      <div class="login-logo">LIGA<br>DUPLAS</div>
+      {logo_html}
+      <div class="login-logo">APC<br>Champions League</div>
       <div class="login-sub">Padel · Ranking Ladder</div>
     </div>
     """, unsafe_allow_html=True)

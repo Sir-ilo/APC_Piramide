@@ -164,39 +164,83 @@ def init_all_sheets(conn):
 
 
 def _ensure_admin_exists(conn):
-    """Guarantee the admin row is always present in the teams sheet.
-    Uses gspread directly to avoid extra conn.read quota hits."""
+    """Guarantee the admin row is present in teams, ranking and trunfos sheets."""
     try:
-        wb  = _get_gspread_wb()
-        ws  = wb.worksheet(SHEET_TEAMS)
+        wb = _get_gspread_wb()
+
+        # ── Teams ────────────────────────────────────────────────────────────
+        ws       = wb.worksheet(SHEET_TEAMS)
         all_vals = ws.get_all_values()
+        if all_vals:
+            headers = all_vals[0]
+            rows    = all_vals[1:]
+            if "team_id" in headers:
+                tid_idx = headers.index("team_id")
+                existing = [r[tid_idx] for r in rows if len(r) > tid_idx]
+                if ADMIN_ID not in existing:
+                    admin_hash = hashlib.sha256("admin2024".encode()).hexdigest()
+                    row_dict = {c: "" for c in headers}
+                    row_dict.update({
+                        "team_id": ADMIN_ID, "team_name": "APC Admin",
+                        "player1": "Admin", "player2": "",
+                        "password_hash": admin_hash, "is_admin": "TRUE",
+                        "photo_url": "", "wins": "0", "losses": "0",
+                        "streak": "0", "total_matches": "0",
+                        "last_match_date": "", "created_at": _now_iso(),
+                    })
+                    ws.append_row([str(row_dict.get(h,"")) for h in headers],
+                                  value_input_option="RAW")
 
-        if not all_vals:
-            return  # sheet is completely empty — seed_fn will handle it
+        # ── Ranking ──────────────────────────────────────────────────────────
+        import time
+        time.sleep(1)
+        try:
+            rws      = wb.worksheet(SHEET_RANKING)
+            r_vals   = rws.get_all_values()
+            if r_vals:
+                rh = r_vals[0]
+                rrows = r_vals[1:]
+                if "team_id" in rh:
+                    rtid_idx = rh.index("team_id")
+                    r_existing = [r[rtid_idx] for r in rrows if len(r) > rtid_idx]
+                    if ADMIN_ID not in r_existing:
+                        max_pos = len(rrows) + 1
+                        rrow = {c: "" for c in rh}
+                        rrow.update({
+                            "team_id": ADMIN_ID, "team_name": "APC Admin",
+                            "position": str(max_pos), "category": "M5",
+                            "points": "0", "prev_position": str(max_pos),
+                            "guardian_since": "", "immune_until": "",
+                            "ready_to_climb": "FALSE", "trunfo_salto_active": "FALSE",
+                        })
+                        rws.append_row([str(rrow.get(h,"")) for h in rh],
+                                       value_input_option="RAW")
+        except Exception:
+            pass
 
-        headers  = all_vals[0]
-        rows     = all_vals[1:]
+        # ── Trunfos ──────────────────────────────────────────────────────────
+        time.sleep(1)
+        try:
+            tws    = wb.worksheet(SHEET_TRUNFOS)
+            t_vals = tws.get_all_values()
+            if t_vals:
+                th = t_vals[0]
+                trows = t_vals[1:]
+                if "team_id" in th:
+                    ttid_idx = th.index("team_id")
+                    t_existing = [r[ttid_idx] for r in trows if len(r) > ttid_idx]
+                    if ADMIN_ID not in t_existing:
+                        trow = {c: "" for c in th}
+                        trow.update({
+                            "team_id": ADMIN_ID, "desforra_qty": "1",
+                            "salto_qty": "1", "escudo_qty": "1",
+                            "last_trunfo_month": "",
+                        })
+                        tws.append_row([str(trow.get(h,"")) for h in th],
+                                       value_input_option="RAW")
+        except Exception:
+            pass
 
-        # Find team_id column index
-        if "team_id" not in headers:
-            return
-        tid_idx = headers.index("team_id")
-        existing_ids = [r[tid_idx] for r in rows if len(r) > tid_idx]
-
-        if ADMIN_ID not in existing_ids:
-            admin_hash = hashlib.sha256("admin2024".encode()).hexdigest()
-            # Build row aligned to headers
-            row_dict = {c: "" for c in headers}
-            row_dict.update({
-                "team_id": ADMIN_ID, "team_name": "Administrador",
-                "player1": "Admin", "player2": "",
-                "password_hash": admin_hash, "is_admin": "TRUE",
-                "photo_url": "", "wins": "0", "losses": "0",
-                "streak": "0", "total_matches": "0",
-                "last_match_date": "", "created_at": _now_iso(),
-            })
-            new_row = [str(row_dict.get(h, "")) for h in headers]
-            ws.append_row(new_row, value_input_option="RAW")
     except Exception:
         pass  # will retry on next boot
 
@@ -257,11 +301,13 @@ def save_pending(conn, df):    _save(conn, SHEET_PENDING,    df)
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 def verify_login(teams_df, team_id: str, password: str):
     ph  = hashlib.sha256(password.encode()).hexdigest()
-    row = teams_df[teams_df["team_id"] == team_id]
+    # Case-insensitive match on team_id
+    row = teams_df[teams_df["team_id"].astype(str).str.strip().str.lower() == team_id.strip().lower()]
     if row.empty:
         return None
     r = row.iloc[0]
-    if str(r["password_hash"]) != ph:
+    stored = str(r["password_hash"]).strip()
+    if stored != ph:
         return None
     return r.to_dict()
 

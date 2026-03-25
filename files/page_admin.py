@@ -186,7 +186,6 @@ def render_admin(data: dict, conn):
                         if rst_month:
                             trf.loc[mask, "last_trunfo_month"] = ""
                     else:
-                        import pandas as pd
                         trf = pd.concat([trf, pd.DataFrame([{
                             "team_id": sel_id, "desforra_qty": new_d,
                             "salto_qty": new_s, "escudo_qty": new_e,

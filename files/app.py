@@ -5,9 +5,18 @@ Entry point. Handles page config, session init, auth gate, and tab routing.
 
 import streamlit as st
 
+import os, base64 as _b64
+
+# Use custom favicon if icon.png exists in the same folder
+_icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
+_page_icon = "🏆"
+if os.path.exists(_icon_path):
+    with open(_icon_path, "rb") as _f:
+        _page_icon = _f  # Streamlit accepts a file object for favicon
+
 st.set_page_config(
-    page_title="Liga de Duplas",
-    page_icon="🏆",
+    page_title="APC Champions League",
+    page_icon=_page_icon,
     layout="wide",
     initial_sidebar_state="collapsed",
 )
