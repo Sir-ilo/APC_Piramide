@@ -71,7 +71,8 @@ def render_help_modal():
 
 
 # ─── Rank card HTML ───────────────────────────────────────────────────────────
-def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False) -> str:
+def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False,
+                   trunfos: dict = None) -> str:
     cat    = str(row.get("category", "M5"))
     color  = LEVEL_COLORS.get(cat, "#aaa")
     pos    = _safe_int(row.get("position", 0))
@@ -90,13 +91,39 @@ def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False) -> str:
     pill    = level_pill_html(cat)
     mine_cls = " mine" if is_mine else ""
 
+    # Streak badge
+    streak_html = ""
+    if streak > 0:
+        sc = "#FF9800" if streak >= 5 else "#8b949e"
+        streak_html = f'<span style="color:{sc};font-size:0.75rem;font-weight:700;">🔥{streak}</span>'
+
+    # Trunfos mini icons
+    trunfo_html = ""
+    if trunfos is not None:
+        def _ti(qty, icon, color):
+            if qty and int(float(qty or 0)) > 0:
+                return f'<span title="{icon}" style="font-size:0.8rem;">{icon}</span>'
+            return f'<span title="sem trunfo" style="font-size:0.8rem;filter:grayscale(1);opacity:.3;">🈳</span>'
+        trunfo_html = (
+            '<div style="display:flex;gap:2px;margin-top:3px;">' +
+            _ti(trunfos.get("desforra_qty",0), "🔄", "#CE93D8") +
+            _ti(trunfos.get("salto_qty",0),    "🦅", "#00E5FF") +
+            _ti(trunfos.get("escudo_qty",0),   "🛡️", "#FFD700") +
+            '</div>'
+        )
+
     return f"""
-<div class="rank-card{mine_cls}" style="--card-accent:{color};">
+<div class="rank-card{mine_cls}" style="--card-accent:{color};cursor:pointer;"
+     title="Clica para ver detalhes">
   <div class="rank-num" style="color:{color}aa;">{pos}</div>
   {avatar}
   <div class="rank-info">
     <div class="rank-team-name">{name} {badges}</div>
     <div class="rank-players">{p1}{' &amp; ' + p2 if p2 else ''}</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:3px;">
+      {streak_html}
+      {trunfo_html}
+    </div>
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
     {pill}
@@ -110,6 +137,20 @@ def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False) -> str:
 def nav_to(page: str):
     st.session_state.active_page = page
     st.rerun()
+
+
+# ─── Render a rank card WITH a clickable button underneath ────────────────────
+def rank_card_with_button(row: dict, streak: int = 0, is_mine: bool = False,
+                          trunfos_row: dict = None, key_prefix: str = "rc"):
+    """Renders the HTML card + an invisible-ish 'Ver perfil' button below it."""
+    team_id = str(row.get("team_id", ""))
+    st.markdown(rank_card_html(row, streak, is_mine, trunfos_row),
+                unsafe_allow_html=True)
+    btn_label = "👤 Ver Perfil" if not is_mine else "👤 O Meu Perfil"
+    if st.button(btn_label, key=f"{key_prefix}_{team_id}",
+                 help=f"Ver detalhe de {row.get('team_name','')}"):
+        st.session_state["view_team_id"] = team_id
+        st.rerun()
 
 
 # ─── Section header ───────────────────────────────────────────────────────────

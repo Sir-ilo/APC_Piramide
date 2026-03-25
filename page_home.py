@@ -5,39 +5,43 @@ page_home.py  —  Tab 1: Dashboard / Home
 import streamlit as st
 import pandas as pd
 from data_layer import assign_categories
-from logic import is_immune, guardian_remaining, team_badges, level_pill_html
-from components import rank_card_html, nav_to, section_header
+from logic import is_immune, guardian_remaining
+from components import rank_card_with_button, nav_to, section_header
 from config import LEVEL_COLORS
+
 
 def _safe_int(val, default=0):
     try:
-        return int(float(val or default))
+        return int(float(str(val).strip() or default))
     except (ValueError, TypeError):
         return default
-
-
 
 
 def render_home(data: dict, conn):
     ranking = assign_categories(data["ranking"].copy())
     teams   = data["teams"]
+    trunfos = data["trunfos"]
 
     if ranking.empty:
         st.info("Sem equipas no ranking. O administrador deve adicionar equipas.")
         return
 
+    # Build trunfos lookup
+    tr_map = {}
+    if not trunfos.empty:
+        for _, tr in trunfos.iterrows():
+            tr_map[str(tr["team_id"])] = tr.to_dict()
+
     # ── Rei da Montanha (M1) ─────────────────────────────────────────────────
     m1 = ranking[ranking["category"] == "M1"]
     if not m1.empty:
-        king = m1.iloc[0]
-        # Merge team info
+        king  = m1.iloc[0]
         t_row = teams[teams["team_id"] == king["team_id"]]
-        p1 = t_row["player1"].values[0] if not t_row.empty else ""
-        p2 = t_row["player2"].values[0] if not t_row.empty else ""
-        pts = int(king["points"] or 0)
-        w   = int(t_row["wins"].values[0]   if not t_row.empty else 0)
-        l   = int(t_row["losses"].values[0] if not t_row.empty else 0)
-
+        p1  = t_row["player1"].values[0] if not t_row.empty else ""
+        p2  = t_row["player2"].values[0] if not t_row.empty else ""
+        pts = _safe_int(king["points"])
+        w   = _safe_int(t_row["wins"].values[0]   if not t_row.empty else 0)
+        l   = _safe_int(t_row["losses"].values[0] if not t_row.empty else 0)
         st.markdown(f"""
         <div class="card-king animate-slide">
           <div class="king-title">👑 Rei da Montanha · M1</div>
@@ -46,6 +50,9 @@ def render_home(data: dict, conn):
           <div class="king-pts">🏅 {pts} pts &nbsp;·&nbsp; {w}V {l}D</div>
         </div>
         """, unsafe_allow_html=True)
+        if st.button("👤 Ver Perfil do Campeão", key="king_detail"):
+            st.session_state["view_team_id"] = str(king["team_id"])
+            st.rerun()
     else:
         st.markdown(
             '<div class="card-king" style="opacity:.5;"><div class="king-title">Trono vazio</div>'
@@ -63,21 +70,20 @@ def render_home(data: dict, conn):
     else:
         for _, row in m2.iterrows():
             t_row  = teams[teams["team_id"] == row["team_id"]]
-            streak = int(t_row["streak"].values[0] if not t_row.empty else 0)
+            streak = _safe_int(t_row["streak"].values[0] if not t_row.empty else 0)
             is_me  = (row["team_id"] == st.session_state.team_id)
+            rdict  = row.to_dict()
             if not t_row.empty:
-                row = row.to_dict()
-                row["player1"] = t_row["player1"].values[0]
-                row["player2"] = t_row["player2"].values[0]
-                row["photo_url"] = t_row["photo_url"].values[0]
-            st.markdown(rank_card_html(row, streak, is_me), unsafe_allow_html=True)
+                rdict["player1"]  = t_row["player1"].values[0]
+                rdict["player2"]  = t_row["player2"].values[0]
+                rdict["photo_url"]= t_row["photo_url"].values[0]
+            tr_row = tr_map.get(str(row["team_id"]))
+            rank_card_with_button(rdict, streak, is_me, tr_row, key_prefix="home_m2")
 
-    col1, col2 = st.columns(2)
+    col1, _ = st.columns(2)
     with col1:
-        if st.button("🏅 Ver Ranking Completo", width='stretch', key="home_ranking"):
+        if st.button("🏅 Ver Ranking Completo", key="home_ranking"):
             nav_to("ranking")
-    with col2:
-        pass
 
     # ── Pending confirmations alert ───────────────────────────────────────────
     matches = data["matches"]
@@ -88,24 +94,22 @@ def render_home(data: dict, conn):
             (matches["validation_status"] == "pending")
         ]
         if not pend.empty:
-            st.warning(
-                f"⚠️ **{len(pend)} resultado(s) aguarda(m) a tua confirmação!**"
-            )
+            st.warning(f"⚠️ **{len(pend)} resultado(s) aguarda(m) a tua confirmação!**")
             if st.button("⚔️ Ver Desafios Pendentes", key="home_pend"):
                 nav_to("challenges")
 
-    # ── Ações rápidas ─────────────────────────────────────────────────────────
+    # ── Acções rápidas ────────────────────────────────────────────────────────
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
     section_header("Acções Rápidas", "⚡")
     c1, c2, c3 = st.columns(3)
     with c1:
-        if st.button("⚔️ Novo Desafio", width='stretch', key="home_challenge"):
+        if st.button("⚔️ Novo Desafio",       key="home_challenge"):
             nav_to("challenges")
     with c2:
-        if st.button("📝 Registar Resultado", width='stretch', key="home_result"):
+        if st.button("📝 Registar Resultado",  key="home_result"):
             nav_to("results")
     with c3:
-        if st.button("👥 Gerir Equipa", width='stretch', key="home_team"):
+        if st.button("👥 Gerir Equipa",        key="home_team"):
             nav_to("teams")
 
     # ── My stats mini ─────────────────────────────────────────────────────────
@@ -117,7 +121,10 @@ def render_home(data: dict, conn):
         r = my_rank.iloc[0]
         t = my_team.iloc[0]
         m1c, m2c, m3c, m4c = st.columns(4)
-        m1c.metric("Posição", f"#{int(r['position'])}")
+        m1c.metric("Posição", f"#{_safe_int(r['position'])}")
         m2c.metric("Nível",   str(r["category"]))
-        m3c.metric("Pontos",  int(r["points"] or 0))
-        m4c.metric("Streak",  f"🔥{int(t['streak'] or 0)}")
+        m3c.metric("Pontos",  _safe_int(r["points"]))
+        m4c.metric("Streak",  f"🔥{_safe_int(t['streak'])}")
+        if st.button("👤 Ver o Meu Perfil Completo", key="home_myprofile"):
+            st.session_state["view_team_id"] = my_id
+            st.rerun()
