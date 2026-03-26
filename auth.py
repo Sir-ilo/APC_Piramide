@@ -1,3 +1,4 @@
+# v2 - APC Champions League
 """
 auth.py
 """
