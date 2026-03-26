@@ -6,8 +6,8 @@ Entry point. Handles page config, session init, auth gate, and tab routing.
 import streamlit as st
 
 st.set_page_config(
-    page_title="Liga de Duplas",
-    page_icon="🏆",
+    page_title="APC Champions League",
+    page_icon="🎾",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
