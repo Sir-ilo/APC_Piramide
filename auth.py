@@ -1,7 +1,4 @@
-# v2 - APC Champions League
-"""
-auth.py
-"""
+# v3
 import streamlit as st
 from data_layer import verify_login, load_all
 from config import ADMIN_ID
@@ -11,12 +8,12 @@ LOGO_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABt
 def ensure_session_defaults():
     defaults = {
         "authenticated": False,
-        "team_id":       None,
-        "team_name":     None,
-        "is_admin":      False,
-        "active_page":   "home",
-        "show_help":     False,
-        "view_team_id":  None,
+        "team_id": None,
+        "team_name": None,
+        "is_admin": False,
+        "active_page": "home",
+        "show_help": False,
+        "view_team_id": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -26,51 +23,28 @@ def ensure_session_defaults():
 def render_login(conn):
     st.markdown("""
     <style>
-    .login-wrap {
-        max-width: 400px;
-        margin: 40px auto 0;
-        text-align: center;
-    }
-    .login-title {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.5rem;
-        font-weight: 800;
-        letter-spacing: 0.1em;
-        color: #27C878;
-        margin: 8px 0 2px;
-    }
-    .login-sub {
-        font-size: 1.8rem;
-        font-weight: 900;
-        color: #ffffff;
-        letter-spacing: 0.05em;
-        margin-bottom: 28px;
-    }
-    .login-footer {
-        text-align: center;
-        margin-top: 20px;
-        color: #3D4A60;
-        font-size: 0.72rem;
-    }
+    .bloco { max-width:380px; margin:40px auto 0; text-align:center; }
+    .titulo { font-size:2rem; font-weight:900; color:#27C878; letter-spacing:.05em; margin:10px 0 2px; }
+    .subtitulo { font-size:2.4rem; font-weight:900; color:#fff; letter-spacing:.05em; margin-bottom:28px; }
+    .rodape { text-align:center; margin-top:18px; color:#3D4A60; font-size:.72rem; }
     </style>
     """, unsafe_allow_html=True)
 
-    _, col, _ = st.columns([1, 2, 1])
-    with col:
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
         st.markdown(
-            f'''<div class="login-wrap">
+            f'''<div class="bloco">
               <img src="data:image/png;base64,{LOGO_B64}"
-                   style="width:160px;filter:drop-shadow(0 0 16px rgba(39,200,120,0.5));">
-              <div class="login-title">APC CHAMPIONS</div>
-              <div class="login-sub">LEAGUE</div>
+                   style="width:160px;filter:drop-shadow(0 0 14px rgba(39,200,120,.5));">
+              <div class="titulo">APC CHAMPIONS</div>
+              <div class="subtitulo">LEAGUE</div>
             </div>''',
             unsafe_allow_html=True,
         )
-
         tid = st.text_input("ID da Equipa", placeholder="ex: EQ001", key="login_tid").strip()
         pw  = st.text_input("Password", type="password", key="login_pw")
 
-        if st.button("▶  Entrar", width='stretch', key="login_btn"):
+        if st.button("Entrar", key="login_btn"):
             data = load_all(conn)
             user = verify_login(data["teams"], tid, pw)
             if user:
@@ -93,7 +67,5 @@ def render_login(conn):
             else:
                 st.error("Credenciais inválidas.")
 
-    st.markdown(
-        '<div class="login-footer">Powered by Sir-ILO &copy; 2026</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="rodape">Powered by Sir-ILO &copy; 2026</div>',
+                unsafe_allow_html=True)
