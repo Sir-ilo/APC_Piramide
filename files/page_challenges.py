@@ -97,18 +97,26 @@ def render_challenges(data: dict, conn):
 
     # Eligible targets
     use_salto = st.checkbox(
-        f"🦅 Usar Salto de Fé (tenho {salto_qty}x)",
+        f"🦅 Usar Salto de Fé (tenho {salto_qty}x) — só no mesmo nível",
         disabled=(salto_qty == 0 or not can_trunfo),
         key="use_salto_cb"
     )
     window = 99 if use_salto else CHALLENGE_WINDOW
 
     # Filter teams above within window
-    eligible = ranking[
-        (ranking["position"] < my_pos) &
-        (ranking["position"] >= my_pos - window) &
-        (ranking["team_id"] != my_id)
-    ]
+    # Salto de Fé only works within the SAME category
+    if use_salto:
+        eligible = ranking[
+            (ranking["position"] < my_pos) &
+            (ranking["category"] == my_cat) &
+            (ranking["team_id"] != my_id)
+        ]
+    else:
+        eligible = ranking[
+            (ranking["position"] < my_pos) &
+            (ranking["position"] >= my_pos - window) &
+            (ranking["team_id"] != my_id)
+        ]
 
     if eligible.empty:
         st.info("Sem adversários elegíveis no teu alcance.")

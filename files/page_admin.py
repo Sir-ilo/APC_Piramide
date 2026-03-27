@@ -108,37 +108,6 @@ def render_admin(data: dict, conn):
                 save_teams(conn, tdf)
                 st.success("Password actualizada!")
 
-            # Trunfo adjustment
-            st.markdown("---")
-            section_header("Ajustar Trunfos", "🃏")
-            trunfos = data["trunfos"]
-            tr_opts = {r["team_id"]: r["team_id"] for _, r in trunfos.iterrows()}
-            with st.form("truf_f"):
-                tr_sel = st.selectbox("Equipa", list(tr_opts.keys()), key="adm_tr_sel")
-                tr_row = trunfos[trunfos["team_id"] == tr_sel]
-                d0 = int(tr_row["desforra_qty"].values[0]) if not tr_row.empty else 0
-                s0 = int(tr_row["salto_qty"].values[0])    if not tr_row.empty else 0
-                e0 = int(tr_row["escudo_qty"].values[0])   if not tr_row.empty else 0
-                tc1, tc2, tc3 = st.columns(3)
-                new_d = tc1.number_input("Desforra", 0, 99, d0)
-                new_s = tc2.number_input("Salto",    0, 99, s0)
-                new_e = tc3.number_input("Escudo",   0, 99, e0)
-                tr_ok = st.form_submit_button("Guardar Trunfos", width='stretch')
-            if tr_ok:
-                trf = trunfos.copy()
-                mask = trf["team_id"] == tr_sel
-                if mask.any():
-                    trf.loc[mask, "desforra_qty"] = new_d
-                    trf.loc[mask, "salto_qty"]    = new_s
-                    trf.loc[mask, "escudo_qty"]   = new_e
-                else:
-                    trf = pd.concat([trf, pd.DataFrame([{
-                        "team_id": tr_sel, "desforra_qty": new_d,
-                        "salto_qty": new_s, "escudo_qty": new_e,
-                        "last_trunfo_month": "",
-                    }])], ignore_index=True)
-                save_trunfos(conn, trf)
-                st.success("Trunfos actualizados!")
 
     # ── 3. Trunfos & Stats manual edit ──────────────────────────────────────
     with tab3:

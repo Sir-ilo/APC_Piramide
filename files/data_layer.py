@@ -292,7 +292,17 @@ def _save(conn, sheet, df):
 
 def save_teams(conn, df):      _save(conn, SHEET_TEAMS,      df)
 def save_ranking(conn, df):    _save(conn, SHEET_RANKING,    df)
-def save_challenges(conn, df): _save(conn, SHEET_CHALLENGES, df)
+def save_challenges(conn, df):
+    import time
+    for attempt in range(3):
+        try:
+            _save(conn, SHEET_CHALLENGES, df)
+            return
+        except Exception as e:
+            if "429" in str(e) or "RATE_LIMIT" in str(e) or "Quota" in str(e):
+                time.sleep(12 * (attempt + 1))
+            else:
+                raise
 def save_matches(conn, df):    _save(conn, SHEET_MATCHES,    df)
 def save_trunfos(conn, df):    _save(conn, SHEET_TRUNFOS,    df)
 def save_pending(conn, df):    _save(conn, SHEET_PENDING,    df)
@@ -372,9 +382,18 @@ def create_challenge(conn, data, challenger_id, challenger_name,
 
 
 def update_challenge_status(conn, data, challenge_id, status):
+    import time
     ch = data["challenges"].copy()
     ch.loc[ch["challenge_id"] == challenge_id, "status"] = status
-    save_challenges(conn, ch)
+    for attempt in range(3):
+        try:
+            save_challenges(conn, ch)
+            return
+        except Exception as e:
+            if "429" in str(e) or "RATE_LIMIT" in str(e) or "Quota" in str(e):
+                time.sleep(15 * (attempt + 1))
+            else:
+                raise
 
 
 # ─── Match mutations ──────────────────────────────────────────────────────────

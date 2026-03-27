@@ -71,7 +71,7 @@ def render_teams(data: dict, conn):
         <div class="profile-card animate-slide">
           <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
             {avatar}
-            <div>
+            <div style="flex:1;">
               <div class="profile-name">{t['team_name']}</div>
               <div style="color:var(--text-muted);font-size:0.82rem;margin-top:2px;">
                 {t.get('player1','')}{' &amp; ' + str(t.get('player2','')) if t.get('player2') else ''}

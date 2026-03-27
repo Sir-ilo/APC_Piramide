@@ -103,8 +103,8 @@ def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False,
     if trunfos is not None:
         def _ti(qty, icon, color):
             if qty and int(float(qty or 0)) > 0:
-                return f'<span title="{icon}" style="font-size:0.8rem;">{icon}</span>'
-            return f'<span title="sem trunfo" style="font-size:0.8rem;filter:grayscale(1);opacity:.3;">🈳</span>'
+                return f'<span style="font-size:0.8rem;">{icon}</span>'
+            return f'<span style="font-size:0.8rem;opacity:.25;">·</span>'
         trunfo_html = (
             '<div style="display:flex;gap:2px;margin-top:3px;">' +
             _ti(trunfos.get("desforra_qty",0), "🔄", "#CE93D8") +
