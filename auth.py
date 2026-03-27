@@ -44,7 +44,7 @@ def render_login(conn):
         tid = st.text_input("ID da Equipa", placeholder="ex: EQ001", key="login_tid").strip()
         pw  = st.text_input("Password", type="password", key="login_pw")
 
-        if st.button("Entrar", key="login_btn"):
+        if st.button("🎾 ENTRAR — APC", key="login_btn"):
             data = load_all(conn)
             user = verify_login(data["teams"], tid, pw)
             if user:
