@@ -631,30 +631,7 @@ hr { border-color: var(--border) !important; }
   letter-spacing: 0.1em;
 }
 
-/* ─── Login screen ────────────────────────────────────── */
-.login-container {
-  max-width: 420px;
-  margin: 60px auto 0;
-  text-align: center;
-}
-.login-logo {
-  font-family: var(--font-display);
-  font-size: 3.5rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, var(--cyan), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 6px;
-}
-.login-sub {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  margin-bottom: 32px;
-}
+/* ─── Login screen — estilos definidos inline no auth.py ── */
 
 /* ─── Team profile card ───────────────────────────────── */
 .profile-card {
