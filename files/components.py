@@ -46,7 +46,8 @@ def render_navbar():
                     help=label,
                     width='stretch',
                 ):
-                    st.session_state.active_page = page_id
+                    st.session_state["active_page"]  = page_id
+                    st.session_state["view_team_id"] = None
                     st.rerun()
                 st.markdown(
                     f"<div style='text-align:center;margin-top:-12px;"
@@ -135,7 +136,8 @@ def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False,
 
 # ─── Quick navigation helper ──────────────────────────────────────────────────
 def nav_to(page: str):
-    st.session_state.active_page = page
+    st.session_state["active_page"]  = page
+    st.session_state["view_team_id"] = None
     st.rerun()
 
 

@@ -5,24 +5,14 @@ Entry point. Handles page config, session init, auth gate, and tab routing.
 
 import streamlit as st
 
-import os, base64 as _b64
-
-# Use custom favicon if icon.png exists in the same folder
-_icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
-_page_icon = "🏆"
-if os.path.exists(_icon_path):
-    with open(_icon_path, "rb") as _f:
-        _page_icon = _f  # Streamlit accepts a file object for favicon
-
 st.set_page_config(
     page_title="APC Champions League",
-    page_icon=_page_icon,
+    page_icon="🎾",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 # ── Local modules ──────────────────────────────────────────────────────────────
-from config import NAV_ITEMS
 from styles import inject_all_styles
 from auth import render_login, ensure_session_defaults
 from data_layer import get_conn, init_all_sheets, load_all
@@ -35,19 +25,21 @@ from page_admin import render_admin
 from page_team_detail import render_team_detail
 from components import render_navbar, render_help_modal
 
-# ── Styles (must come before any st.markdown) ──────────────────────────────────
+# ── Styles ─────────────────────────────────────────────────────────────────────
 inject_all_styles()
 
 # ── Session defaults ───────────────────────────────────────────────────────────
 ensure_session_defaults()
+# Ensure view_team_id always exists in session
+if "view_team_id" not in st.session_state:
+    st.session_state["view_team_id"] = None
 
-# ── Google Sheets connection + one-time init (cached resource) ────────────────
+# ── Google Sheets connection + one-time init ───────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def _conn():
-    """Create connection AND run init exactly once per server lifetime."""
     import time
     c = get_conn()
-    time.sleep(2)          # let the connection settle before hitting the API
+    time.sleep(2)
     init_all_sheets(c)
     return c
 
@@ -58,15 +50,12 @@ if not st.session_state.get("authenticated"):
     render_login(conn)
     st.stop()
 
-# ── Load data (short TTL cache so edits propagate quickly) ─────────────────────
+# ── Load data ──────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=8, show_spinner=False)
 def _load():
     return load_all(conn)
 
 data = _load()
-
-# ── Help modal (floating '?' button) ──────────────────────────────────────────
-render_help_modal()
 
 # ── Top bar ────────────────────────────────────────────────────────────────────
 top_left, top_right = st.columns([6, 1])
@@ -81,12 +70,13 @@ with top_right:
             del st.session_state[k]
         st.rerun()
 
-# ── Active page routing ────────────────────────────────────────────────────────
-active = st.session_state.get("active_page", "home")
+# ── Routing ────────────────────────────────────────────────────────────────────
+active      = st.session_state.get("active_page", "home")
+view_team   = st.session_state.get("view_team_id")  # None or a team_id string
 
-# Team detail overlay — takes priority over any page
-if st.session_state.get("view_team_id"):
-    render_team_detail(data, conn, st.session_state["view_team_id"])
+if view_team:
+    # Show back button prominently so user can always escape
+    render_team_detail(data, conn, view_team)
 elif active == "home":
     render_home(data, conn)
 elif active == "ranking":
@@ -99,6 +89,8 @@ elif active == "results":
     render_results(data, conn)
 elif active == "admin" and st.session_state.get("is_admin"):
     render_admin(data, conn)
+else:
+    render_home(data, conn)
 
-# ── Bottom nav bar ─────────────────────────────────────────────────────────────
+# ── Bottom nav bar (always visible, clears view_team_id on tap) ───────────────
 render_navbar()
