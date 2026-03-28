@@ -290,8 +290,28 @@ def _save(conn, sheet, df):
     st.cache_data.clear()
 
 
-def save_teams(conn, df):      _save(conn, SHEET_TEAMS,      df)
-def save_ranking(conn, df):    _save(conn, SHEET_RANKING,    df)
+def save_teams(conn, df):
+    import time
+    for attempt in range(3):
+        try:
+            _save(conn, SHEET_TEAMS, df)
+            return
+        except Exception as e:
+            if "429" in str(e) or "RATE_LIMIT" in str(e) or "Quota" in str(e):
+                time.sleep(15 * (attempt + 1))
+            else:
+                raise
+def save_ranking(conn, df):
+    import time
+    for attempt in range(3):
+        try:
+            _save(conn, SHEET_RANKING, df)
+            return
+        except Exception as e:
+            if "429" in str(e) or "RATE_LIMIT" in str(e) or "Quota" in str(e):
+                time.sleep(15 * (attempt + 1))
+            else:
+                raise
 def save_challenges(conn, df):
     import time
     for attempt in range(3):

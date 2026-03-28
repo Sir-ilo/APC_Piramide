@@ -1,4 +1,4 @@
-# v4
+# v5
 import streamlit as st
 from data_layer import verify_login, load_all
 from config import ADMIN_ID
@@ -9,12 +9,9 @@ DRAGON_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAA
 def ensure_session_defaults():
     defaults = {
         "authenticated": False,
-        "team_id": None,
-        "team_name": None,
-        "is_admin": False,
-        "active_page": "home",
-        "show_help": False,
-        "view_team_id": None,
+        "team_id": None, "team_name": None,
+        "is_admin": False, "active_page": "home",
+        "show_help": False, "view_team_id": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -22,153 +19,138 @@ def ensure_session_defaults():
 
 
 def render_login(conn):
-    st.markdown(f"""
+    CSS = """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,900;1,900&display=swap');
-    .lcwrap {{ max-width:400px; margin:30px auto 0; text-align:center; font-family:'Barlow Condensed',sans-serif; }}
-    .lc-apc {{
-        font-size:1.1rem; font-weight:900; color:#27C878;
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,700;1,900;0,900&display=swap');
+    .lcwrap { max-width:360px; margin:20px auto 0; text-align:center; }
+    .lc-apc {
+        font-family:'Barlow Condensed',sans-serif;
+        font-size:1rem; font-weight:900; color:#27C878;
         letter-spacing:.5em; font-style:italic;
-        display:flex; align-items:center; justify-content:center; gap:8px;
-        margin:10px 0 0;
-    }}
-    .lc-apc .bar {{ color:#27C878; font-size:1.4rem; font-style:normal; }}
-    .lc-cl {{
-        font-size:2.6rem; font-weight:900; color:#fff;
-        letter-spacing:.08em; font-style:italic;
-        line-height:1; margin:0 0 4px;
-    }}
-    .lc-league {{
-        font-size:1.6rem; font-weight:700; color:#fff;
-        letter-spacing:.2em; margin-bottom:28px;
-    }}
-    .sirl {{ text-align:center; margin-top:18px; color:#3D4A60; font-size:.72rem; cursor:pointer; user-select:none; }}
+        display:flex; align-items:center; justify-content:center; gap:10px;
+        margin:12px 0 0;
+    }
+    .lc-bar { font-size:1.2rem; color:#27C878; font-style:normal; }
+    .lc-cl {
+        font-family:'Barlow Condensed',sans-serif;
+        font-size:2.8rem; font-weight:900; color:#fff;
+        letter-spacing:.06em; font-style:italic; line-height:1; margin:0;
+    }
+    .lc-league {
+        font-family:'Barlow Condensed',sans-serif;
+        font-size:1.5rem; font-weight:700; color:#fff;
+        letter-spacing:.28em; margin-bottom:30px;
+    }
     </style>
-    <div class="lcwrap">
-      <img src="data:image/png;base64,{LOGO_B64}"
-           style="width:180px;filter:drop-shadow(0 0 18px rgba(39,200,120,.5));">
-      <div class="lc-apc"><span class="bar">⌇</span>APC<span class="bar">⌇</span></div>
-      <div class="lc-cl">CHAMPIONS</div>
-      <div class="lc-league">LEAGUE</div>
-    </div>
-    """, unsafe_allow_html=True)
+    """
+    st.markdown(CSS, unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
+    logo_html = (
+        f'<div class="lcwrap">'
+        f'<img src="data:image/png;base64,{LOGO_B64}" '
+        f'style="width:180px;mix-blend-mode:lighten;'
+        f'filter:drop-shadow(0 0 20px rgba(39,200,120,.6));">'
+        f'<div class="lc-apc"><span class="lc-bar">✦</span>APC<span class="lc-bar">✦</span></div>'
+        f'<div class="lc-cl">CHAMPIONS</div>'
+        f'<div class="lc-league">L E A G U E</div>'
+        f'</div>'
+    )
+    st.markdown(logo_html, unsafe_allow_html=True)
+
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
         tid = st.text_input("ID da Equipa", placeholder="ex: EQ001", key="login_tid").strip()
         pw  = st.text_input("Password", type="password", key="login_pw")
-        if st.button("Vamos!", key="login_btn"):
-            data = load_all(conn)
-            user = verify_login(data["teams"], tid, pw)
-            if user:
-                st.session_state.authenticated = True
-                st.session_state.team_id       = tid
-                st.session_state.team_name     = user.get("team_name", tid)
-                st.session_state.is_admin      = (
-                    tid == ADMIN_ID or
-                    str(user.get("is_admin", "")).upper() == "TRUE"
-                )
-                my_matches = data["matches"]
-                if not my_matches.empty:
-                    pend = my_matches[
-                        (my_matches["team_b_id"] == tid) &
-                        (my_matches["validation_status"] == "pending")
-                    ]
-                    if not pend.empty:
-                        st.session_state.active_page = "challenges"
-                st.rerun()
-            else:
-                st.error("Credenciais inválidas.")
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            if st.button("Vamos! 🎾", key="login_btn", use_container_width=True):
+                data = load_all(conn)
+                user = verify_login(data["teams"], tid, pw)
+                if user:
+                    st.session_state.authenticated = True
+                    st.session_state.team_id       = tid
+                    st.session_state.team_name     = user.get("team_name", tid)
+                    st.session_state.is_admin      = (
+                        tid == ADMIN_ID or
+                        str(user.get("is_admin", "")).upper() == "TRUE"
+                    )
+                    my_matches = data["matches"]
+                    if not my_matches.empty:
+                        pend = my_matches[
+                            (my_matches["team_b_id"] == tid) &
+                            (my_matches["validation_status"] == "pending")
+                        ]
+                        if not pend.empty:
+                            st.session_state.active_page = "challenges"
+                    st.rerun()
+                else:
+                    st.error("Credenciais inválidas.")
 
-    # Secret Dragon Easter Egg
     _render_dragon_egg()
 
 
 def _render_dragon_egg():
-    st.markdown(f"""
+    dragon_css = """
     <style>
-    #dragon-overlay {{
-        display:none; position:fixed; inset:0; z-index:99999;
-        background:#0a1a0a;
-        flex-direction:column; align-items:center; justify-content:center;
-    }}
-    #dragon-overlay.show {{ display:flex; }}
-    #dragon-img {{ width:200px; opacity:.9; margin-bottom:20px; animation: breathe 3s ease-in-out infinite; }}
-    #dragon-msg {{ color:#27C878; font-family:'Barlow Condensed',sans-serif;
-                   font-size:1.1rem; letter-spacing:.15em; opacity:.7; }}
-    #zzz {{ font-size:2rem; color:#27C878; opacity:0; margin-top:10px;
-            animation: none; }}
-    #zzz.show {{ animation: fadeInOut 1s ease-in-out infinite; }}
-    @keyframes breathe {{ 0%,100% {{ transform:scale(1); }} 50% {{ transform:scale(1.04); }} }}
-    @keyframes fadeInOut {{ 0%,100% {{ opacity:0; }} 50% {{ opacity:1; }} }}
+    #dragon-ov {
+        display:none;position:fixed;inset:0;z-index:99999;
+        background:#030f03;
+        flex-direction:column;align-items:center;justify-content:center;
+    }
+    #dragon-ov.show { display:flex; }
+    #dragon-ov img { width:180px;animation:dr-breathe 3s ease-in-out infinite;margin-bottom:18px; }
+    #dragon-ov .dr-lbl { color:#27C878;font-size:1rem;letter-spacing:.2em;opacity:.7; }
+    #zzz-el { font-size:2rem;opacity:0;margin-top:8px;transition:opacity .5s; }
+    #zzz-el.show { opacity:1; }
+    @keyframes dr-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.05); } }
+    .sir-footer { text-align:center;padding:6px 0 70px;color:#3D4A60;font-size:.68rem;
+        cursor:pointer;user-select:none; }
     </style>
-
-    <div id="dragon-overlay" onclick="dragonTouch()">
-      <img id="dragon-img" src="data:image/png;base64,{DRAGON_B64}">
-      <div id="dragon-msg">Powered by Sir-ILO &copy; 2026</div>
-      <div id="zzz">💤 Zzz...</div>
-    </div>
-
-    <div class="sirl" id="siril-txt" onclick="sirilClick()">Powered by Sir-ILO &copy; 2026</div>
-
+    """
+    dragon_html = (
+        f'<div id="dragon-ov">'
+        f'<img src="data:image/png;base64,{DRAGON_B64}" onclick="dragonTouch()">'
+        f'<div class="dr-lbl" onclick="dragonTouch()">Powered by Sir-ILO &copy; 2026</div>'
+        f'<div id="zzz-el">💤 Zzz...</div>'
+        f'</div>'
+        f'<div class="sir-footer" onclick="sirilClick()">Powered by Sir-ILO &copy; 2026</div>'
+    )
+    dragon_js = """
     <script>
-    var _sc = 0, _st = null, _dt = null, _sleeping = false;
-
-    function sirilClick() {{
-        _sc++;
-        clearTimeout(_st);
-        _st = setTimeout(function(){{ _sc = 0; }}, 2000);
-        if (_sc === 3) {{
-            var o = document.getElementById('dragon-overlay');
-            o.innerHTML += '';
-            o.classList.remove('show');
-            // show message first
-            showMsg("Don't wake the Dragon 🐉");
-        }}
-        if (_sc === 7) {{
-            _sc = 0;
-            openDragon();
-        }}
-    }}
-
-    function showMsg(txt) {{
-        var d = document.createElement('div');
-        d.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);'
-            + 'background:#27C878;color:#000;padding:10px 22px;border-radius:99px;'
-            + 'font-family:Barlow Condensed,sans-serif;font-size:1rem;font-weight:700;'
-            + 'z-index:99998;letter-spacing:.05em;';
-        d.innerText = txt;
-        document.body.appendChild(d);
-        setTimeout(function(){{ d.remove(); }}, 2500);
-    }}
-
-    function openDragon() {{
-        document.getElementById('dragon-overlay').classList.add('show');
-        _sleeping = false;
-        resetDragonTimer();
-    }}
-
-    function dragonTouch() {{
-        if (!_sleeping) resetDragonTimer();
-    }}
-
-    function resetDragonTimer() {{
-        _sleeping = false;
-        var z = document.getElementById('zzz');
-        if (z) z.classList.remove('show');
-        clearTimeout(_dt);
-        // show zzz after 3s of no touch
-        _dt = setTimeout(function() {{
-            _sleeping = true;
-            var z2 = document.getElementById('zzz');
-            if (z2) z2.classList.add('show');
-            // close after 4s
-            setTimeout(function() {{
-                document.getElementById('dragon-overlay').classList.remove('show');
-                _sleeping = false;
-                _sc = 0;
-            }}, 4000);
-        }}, 3000);
-    }}
+    (function(){
+      var sc=0, st_=null, dt=null;
+      window.sirilClick = function(){
+        sc++;
+        clearTimeout(st_);
+        st_ = setTimeout(function(){ sc=0; }, 2500);
+        if(sc===3){
+          var d=document.createElement('div');
+          d.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);'
+            +'background:#27C878;color:#000;padding:10px 24px;border-radius:99px;'
+            +'font-weight:800;z-index:99998;letter-spacing:.05em;pointer-events:none;';
+          d.innerText="Don't wake the Dragon";
+          document.body.appendChild(d);
+          setTimeout(function(){ d.remove(); }, 2500);
+        }
+        if(sc>=7){ sc=0; openDragon(); }
+      };
+      function openDragon(){
+        document.getElementById('dragon-ov').classList.add('show');
+        resetTimer();
+      }
+      window.dragonTouch = function(){ resetTimer(); };
+      function resetTimer(){
+        document.getElementById('zzz-el').classList.remove('show');
+        clearTimeout(dt);
+        dt=setTimeout(function(){
+          document.getElementById('zzz-el').classList.add('show');
+          setTimeout(function(){
+            document.getElementById('dragon-ov').classList.remove('show');
+            sc=0;
+          }, 4000);
+        }, 3000);
+      }
+    })();
     </script>
-    """, unsafe_allow_html=True)
+    """
+    st.markdown(dragon_css + dragon_html + dragon_js, unsafe_allow_html=True)

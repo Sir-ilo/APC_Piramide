@@ -97,8 +97,9 @@ elif active == "admin" and st.session_state.get("is_admin"):
 else:
     render_home(data, conn)
 
-# ── Footer Sir-ILO (all screens) ───────────────────────────────────────────────
-st.markdown('<div style="text-align:center;padding:8px 0 72px;color:#3D4A60;font-size:.68rem;" id="siril-main">Powered by Sir-ILO &copy; 2026</div>', unsafe_allow_html=True)
+# ── Footer Sir-ILO with dragon egg (all screens) ──────────────────────────────
+from auth import _render_dragon_egg
+_render_dragon_egg()
 
 # ── Bottom nav bar ─────────────────────────────────────────────────────────────
 render_navbar()

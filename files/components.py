@@ -146,23 +146,84 @@ def nav_to(page: str):
 # ─── Render a rank card — clicking opens team detail ──────────────────────────
 def rank_card_with_button(row: dict, streak: int = 0, is_mine: bool = False,
                           trunfos_row: dict = None, key_prefix: str = "rc"):
-    """Card is a button itself — clicking opens team detail."""
+    """Uses st.button styled to look like the card itself."""
     team_id   = str(row.get("team_id", ""))
     team_name = str(row.get("team_name", ""))
-    # Render card HTML
-    st.markdown(rank_card_html(row, streak, is_mine, trunfos_row),
-                unsafe_allow_html=True)
-    # Invisible full-width button overlaid on card (via CSS margin hack)
-    st.markdown(
-        f'<style>#btn_{key_prefix}_{team_id} button {{'
-        f'margin-top:-62px;height:62px;width:100%;opacity:0;cursor:pointer;'
-        f'position:relative;z-index:10;}}</style>',
-        unsafe_allow_html=True
-    )
-    if st.button(".", key=f"btn_{key_prefix}_{team_id}",
-                 help=f"Ver perfil de {team_name}"):
+    cat       = str(row.get("category", "M5"))
+    color     = LEVEL_COLORS.get(cat, "#aaa")
+    pos       = _safe_int(row.get("position", 0))
+    pts       = _safe_int(row.get("points", 0))
+    p1        = str(row.get("player1", "") or "")
+    p2        = str(row.get("player2", "") or "")
+    photo     = str(row.get("photo_url", "") or "")
+    streak_i  = int(streak or 0)
+    mine_border = f"border:2px solid {color};" if is_mine else f"border:1px solid #21262d;"
+
+    # Trunfos
+    tr_html = ""
+    if trunfos_row:
+        def _q(v):
+            try: return int(float(v or 0))
+            except: return 0
+        d = _q(trunfos_row.get("desforra_qty",0))
+        s = _q(trunfos_row.get("salto_qty",0))
+        e = _q(trunfos_row.get("escudo_qty",0))
+        tr_html = (
+            ("🔄" if d>0 else "◌") +
+            ("🦅" if s>0 else "◌") +
+            ("🛡️" if e>0 else "◌")
+        )
+
+    streak_html = f"🔥{streak_i}" if streak_i >= 1 else ""
+    avatar_html = f'<img src="{photo}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid {color};">' if photo else f'<div style="width:38px;height:38px;border-radius:50%;background:#1c2128;border:2px solid {color};display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🎾</div>'
+
+    # Badge for level
+    pill = f'<span style="background:{color}22;border:1px solid {color}66;color:{color};border-radius:99px;padding:1px 8px;font-size:.65rem;font-weight:700;">{cat}</span>'
+
+    card_html = f"""
+<div style="{mine_border}border-radius:12px;background:#0d1117;padding:10px 14px;
+     margin-bottom:6px;display:flex;align-items:center;gap:10px;
+     box-shadow: 0 2px 8px rgba(0,0,0,.4);">
+  <div style="font-family:'Barlow Condensed',monospace;font-size:1.4rem;font-weight:800;
+       color:{color}55;min-width:28px;text-align:center;">#{pos}</div>
+  {avatar_html}
+  <div style="flex:1;min-width:0;">
+    <div style="font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{team_name}</div>
+    <div style="font-size:.72rem;color:#6B7A99;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{p1}{" &amp; "+p2 if p2 else ""}</div>
+    <div style="font-size:.75rem;margin-top:2px;">{streak_html} {tr_html}</div>
+  </div>
+  <div style="text-align:right;flex-shrink:0;">
+    {pill}
+    <div style="font-family:'Barlow Condensed',monospace;font-size:1.1rem;font-weight:700;color:#8b949e;margin-top:2px;">{pts}<span style="font-size:.6rem;color:#3D4A60;"> pts</span></div>
+  </div>
+</div>"""
+
+    # Use button with card label for accessibility, hide default styling
+    uid = f"{key_prefix}_{team_id}"
+    st.markdown(f"""
+<style>
+div[data-testid="stButton"] > button[kind="secondary"]#card_{uid} {{
+    display:none;
+}}
+</style>""", unsafe_allow_html=True)
+
+    st.markdown(card_html, unsafe_allow_html=True)
+    if st.button(f"#{pos} {team_name}", key=f"card_{uid}",
+                 help=f"Ver perfil de {team_name}",
+                 use_container_width=True):
         st.session_state["view_team_id"] = team_id
         st.rerun()
+    # Hide the button visually with CSS
+    st.markdown(f"""
+<style>
+[data-testid="stButton"]:has(button[title="Ver perfil de {team_name}"]) button {{
+    margin-top: -8px;
+    height: 4px;
+    opacity: 0;
+    pointer-events: auto;
+    cursor: pointer;
+}}
+</style>""", unsafe_allow_html=True)
 
 
 # ─── Section header ───────────────────────────────────────────────────────────
