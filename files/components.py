@@ -98,19 +98,21 @@ def rank_card_html(row: dict, streak: int = 0, is_mine: bool = False,
         sc = "#FF9800" if streak >= 5 else "#8b949e"
         streak_html = f'<span style="color:{sc};font-size:0.75rem;font-weight:700;">🔥{streak}</span>'
 
-    # Trunfos mini icons
+    # Trunfos mini icons — build safe HTML
     trunfo_html = ""
     if trunfos is not None:
-        def _ti(qty, icon, color):
-            if qty and int(float(qty or 0)) > 0:
-                return f'<span style="font-size:0.8rem;">{icon}</span>'
-            return f'<span style="font-size:0.8rem;opacity:.25;">·</span>'
+        def _safe_qty(v):
+            try: return int(float(v or 0))
+            except: return 0
+        d = _safe_qty(trunfos.get("desforra_qty", 0))
+        s = _safe_qty(trunfos.get("salto_qty", 0))
+        e = _safe_qty(trunfos.get("escudo_qty", 0))
+        def _dot(n, icon):
+            return icon if n > 0 else "&#183;"
         trunfo_html = (
-            '<div style="display:flex;gap:2px;margin-top:3px;">' +
-            _ti(trunfos.get("desforra_qty",0), "🔄", "#CE93D8") +
-            _ti(trunfos.get("salto_qty",0),    "🦅", "#00E5FF") +
-            _ti(trunfos.get("escudo_qty",0),   "🛡️", "#FFD700") +
-            '</div>'
+            f'<span style="font-size:.78rem;opacity:.9;letter-spacing:1px;">' +
+            _dot(d,"&#x1F504;") + _dot(s,"&#x1F985;") + _dot(e,"&#x1F6E1;") +
+            '</span>'
         )
 
     return f"""
@@ -141,16 +143,24 @@ def nav_to(page: str):
     st.rerun()
 
 
-# ─── Render a rank card WITH a clickable button underneath ────────────────────
+# ─── Render a rank card — clicking opens team detail ──────────────────────────
 def rank_card_with_button(row: dict, streak: int = 0, is_mine: bool = False,
                           trunfos_row: dict = None, key_prefix: str = "rc"):
-    """Renders the HTML card + an invisible-ish 'Ver perfil' button below it."""
-    team_id = str(row.get("team_id", ""))
+    """Card is a button itself — clicking opens team detail."""
+    team_id   = str(row.get("team_id", ""))
+    team_name = str(row.get("team_name", ""))
+    # Render card HTML
     st.markdown(rank_card_html(row, streak, is_mine, trunfos_row),
                 unsafe_allow_html=True)
-    btn_label = "👤 Ver Perfil" if not is_mine else "👤 O Meu Perfil"
-    if st.button(btn_label, key=f"{key_prefix}_{team_id}",
-                 help=f"Ver detalhe de {row.get('team_name','')}"):
+    # Invisible full-width button overlaid on card (via CSS margin hack)
+    st.markdown(
+        f'<style>#btn_{key_prefix}_{team_id} button {{'
+        f'margin-top:-62px;height:62px;width:100%;opacity:0;cursor:pointer;'
+        f'position:relative;z-index:10;}}</style>',
+        unsafe_allow_html=True
+    )
+    if st.button(".", key=f"btn_{key_prefix}_{team_id}",
+                 help=f"Ver perfil de {team_name}"):
         st.session_state["view_team_id"] = team_id
         st.rerun()
 

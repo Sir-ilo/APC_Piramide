@@ -110,6 +110,7 @@ def render_home(data: dict, conn):
             nav_to("results")
     with c3:
         if st.button("👥 Gerir Equipa",        key="home_team"):
+            st.cache_data.clear()
             nav_to("teams")
 
     # ── My stats mini ─────────────────────────────────────────────────────────

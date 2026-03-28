@@ -1,26 +1,39 @@
 """
-page_results.py  —  Tab 5: Submit match result + timeline of validated matches.
+page_results.py — Registar resultados em formato padel (sets/games)
 """
-
 import streamlit as st
 import pandas as pd
-from data_layer import assign_categories, submit_match
-from logic import determine_winner_sets
+from data_layer import assign_categories, submit_match, update_challenge_status
 from components import section_header
 from config import LEVEL_COLORS
 
 
+def _safe_int(val, default=0):
+    try: return int(float(str(val).strip() or default))
+    except: return 0
+
+
+def _padel_winner(s1a, s1b, s2a, s2b, s3a=None, s3b=None):
+    """Returns 'A', 'B' or None. Padel: first to 2 sets."""
+    sets_a = (1 if s1a > s1b else 0) + (1 if s2a > s2b else 0)
+    sets_b = (1 if s1b > s1a else 0) + (1 if s2b > s2a else 0)
+    if sets_a == 2: return "A"
+    if sets_b == 2: return "B"
+    if s3a is not None and s3b is not None and s3a != s3b:
+        return "A" if s3a > s3b else "B"
+    return None
+
+
 def render_results(data: dict, conn):
-    my_id  = st.session_state.team_id
-    teams  = data["teams"]
-    ranking= assign_categories(data["ranking"].copy())
-    matches= data["matches"]
+    my_id     = st.session_state.team_id
+    teams     = data["teams"]
+    ranking   = assign_categories(data["ranking"].copy())
+    matches   = data["matches"]
     challenges = data["challenges"]
 
-    # ── Submit new result ─────────────────────────────────────────────────────
+    # ── Submit new result ────────────────────────────────────────────────────
     section_header("Registar Resultado", "📝")
 
-    # Find accepted challenges involving me
     my_ch = pd.DataFrame()
     if not challenges.empty:
         my_ch = challenges[
@@ -29,104 +42,112 @@ def render_results(data: dict, conn):
         ]
 
     if my_ch.empty:
-        st.info("Sem desafios aceites para registar. Envia ou aceita um desafio primeiro.")
+        st.info("Sem desafios aceites. Envia ou aceita um desafio primeiro.")
     else:
-        ch_options = {
+        ch_opts = {
             f"{r['challenger_name']} vs {r['defender_name']} ({str(r['timestamp'])[:10]})": r["challenge_id"]
             for _, r in my_ch.iterrows()
         }
-        sel_label = st.selectbox("Seleccionar jogo", list(ch_options.keys()), key="match_ch")
-        sel_id    = ch_options[sel_label]
+        sel_label = st.selectbox("Seleccionar jogo", list(ch_opts.keys()), key="match_ch")
+        sel_id    = ch_opts[sel_label]
         sel_ch    = my_ch[my_ch["challenge_id"] == sel_id].iloc[0]
 
-        a_id   = sel_ch["challenger_id"]
-        a_name = sel_ch["challenger_name"]
-        b_id   = sel_ch["defender_id"]
-        b_name = sel_ch["defender_name"]
+        a_id, a_name = sel_ch["challenger_id"], sel_ch["challenger_name"]
+        b_id, b_name = sel_ch["defender_id"],   sel_ch["defender_name"]
 
         st.markdown(f"""
-        <div class="card" style="--card-accent:var(--cyan);">
+        <div style="background:linear-gradient(90deg,#0E1A2A,#0A1520);
+             border:1px solid rgba(0,229,255,0.2);border-radius:14px;padding:16px 20px;margin-bottom:16px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
-              <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;">Desafiante</div>
-              <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;">{a_name}</div>
+              <div style="font-size:.7rem;color:#00E5FF;letter-spacing:.15em;text-transform:uppercase;">⚔️ Desafiante</div>
+              <div style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.4rem;font-weight:800;color:#fff;">{a_name}</div>
             </div>
-            <div style="font-family:var(--font-display);font-size:1.8rem;color:var(--text-dim);">VS</div>
+            <div style="font-size:2rem;color:#30363d;font-weight:900;">VS</div>
             <div style="text-align:right;">
-              <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;">Defesa</div>
-              <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;">{b_name}</div>
+              <div style="font-size:.7rem;color:#CE93D8;letter-spacing:.15em;text-transform:uppercase;">🛡️ Defesa</div>
+              <div style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.4rem;font-weight:800;color:#fff;">{b_name}</div>
             </div>
           </div>
         </div>
         """, unsafe_allow_html=True)
 
-        with st.form("result_form"):
-            suplente = st.checkbox("⚠️ Uso de Suplente (vitória vale apenas 2 pts)")
+        suplente = st.checkbox("⚠️ Uso de Suplente (vitória vale apenas 2 pts)")
 
-            st.markdown("**Sets**")
-            cols1 = st.columns([2,1,2])
-            with cols1[0]: s1a = st.number_input(f"Set 1 — {a_name}", 0, 99, 0, key="s1a")
-            with cols1[1]: st.markdown("<div style='text-align:center;padding-top:26px;color:var(--text-dim);'>–</div>", unsafe_allow_html=True)
-            with cols1[2]: s1b = st.number_input(f"Set 1 — {b_name}", 0, 99, 0, key="s1b")
+        st.markdown("##### 🎾 Resultado por sets")
 
-            cols2 = st.columns([2,1,2])
-            with cols2[0]: s2a = st.number_input(f"Set 2 — {a_name}", 0, 99, 0, key="s2a")
-            with cols2[1]: st.markdown("<div style='text-align:center;padding-top:26px;color:var(--text-dim);'>–</div>", unsafe_allow_html=True)
-            with cols2[2]: s2b = st.number_input(f"Set 2 — {b_name}", 0, 99, 0, key="s2b")
+        # Set 1
+        st.markdown(f"**Set 1**")
+        c1, c2, c3 = st.columns([2, 1, 2])
+        with c1: s1a = st.number_input(f"{a_name}", 0, 99, 0, key="s1a", label_visibility="visible")
+        with c2: st.markdown("<div style='text-align:center;padding-top:28px;color:#30363d;font-weight:900;'>—</div>", unsafe_allow_html=True)
+        with c3: s1b = st.number_input(f"{b_name}", 0, 99, 0, key="s1b", label_visibility="visible")
 
-            need_s3 = (
-                (1 if s1a > s1b else 0) + (1 if s2a > s2b else 0) == 1 and
-                (1 if s1b > s1a else 0) + (1 if s2b > s2a else 0) == 1
-            )
-            s3a = s3b = None
-            if need_s3:
-                cols3 = st.columns([2,1,2])
-                with cols3[0]: s3a = st.number_input(f"Set 3 — {a_name}", 0, 99, 0, key="s3a")
-                with cols3[1]: st.markdown("<div style='text-align:center;padding-top:26px;color:var(--text-dim);'>–</div>", unsafe_allow_html=True)
-                with cols3[2]: s3b = st.number_input(f"Set 3 — {b_name}", 0, 99, 0, key="s3b")
+        # Set 2
+        st.markdown(f"**Set 2**")
+        c1, c2, c3 = st.columns([2, 1, 2])
+        with c1: s2a = st.number_input(f"{a_name} ", 0, 99, 0, key="s2a", label_visibility="visible")
+        with c2: st.markdown("<div style='text-align:center;padding-top:28px;color:#30363d;font-weight:900;'>—</div>", unsafe_allow_html=True)
+        with c3: s2b = st.number_input(f"{b_name} ", 0, 99, 0, key="s2b", label_visibility="visible")
 
-            wo_col1, wo_col2 = st.columns(2)
-            wo_a = wo_col1.form_submit_button(f"❌ W.O. {a_name}")
-            wo_b = wo_col2.form_submit_button(f"❌ W.O. {b_name}")
-            submitted = st.form_submit_button("✅ Submeter Resultado", width='stretch')
+        # Check if set 3 needed
+        sets_a = (1 if s1a > s1b else 0) + (1 if s2a > s2b else 0)
+        sets_b = (1 if s1b > s1a else 0) + (1 if s2b > s2a else 0)
+        need_s3 = (sets_a == 1 and sets_b == 1)
+        s3a = s3b = None
 
-        if wo_a or wo_b:
-            score_a = 0 if wo_a else 99
-            score_b = 99 if wo_a else 0
-            submit_match(
-                conn, data, a_id, a_name, b_id, b_name,
-                score_a, score_b, 0,0,0,0,None,None,
-                suplente=False, challenge_id=sel_id, submitted_by=my_id
-            )
-            from data_layer import update_challenge_status
-            update_challenge_status(conn, data, sel_id, "played")
-            st.warning("W.O. registado. Aguarda confirmação.")
-            st.rerun()
+        if need_s3:
+            st.markdown("**Set 3 (decisivo)**")
+            c1, c2, c3 = st.columns([2, 1, 2])
+            with c1: s3a = st.number_input(f"{a_name}  ", 0, 99, 0, key="s3a", label_visibility="visible")
+            with c2: st.markdown("<div style='text-align:center;padding-top:28px;color:#30363d;font-weight:900;'>—</div>", unsafe_allow_html=True)
+            with c3: s3b = st.number_input(f"{b_name}  ", 0, 99, 0, key="s3b", label_visibility="visible")
 
-        if submitted:
-            winner = determine_winner_sets(s1a, s1b, s2a, s2b, s3a, s3b)
+        # Preview score string
+        if s1a or s1b or s2a or s2b:
+            score_str = f"{s1a}-{s1b}; {s2a}-{s2b}"
+            if s3a is not None: score_str += f"; {s3a}-{s3b}"
+            winner = _padel_winner(s1a, s1b, s2a, s2b, s3a, s3b)
+            wname  = a_name if winner == "A" else (b_name if winner == "B" else "?")
+            role   = "Desafiante" if winner == "A" else ("Defesa" if winner == "B" else "")
+            clr    = "#3fb950" if winner else "#f85149"
+            st.markdown(f"""
+            <div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;
+                 padding:12px 16px;margin:8px 0;font-family:\'Barlow Condensed\',sans-serif;">
+              <span style="font-size:1.3rem;font-weight:800;color:#fff;">{score_str}</span>
+              &nbsp;&nbsp;
+              <span style="color:{clr};font-weight:700;">
+                {'🏆 ' + wname + ' (' + role + ')' if winner else '⏳ incompleto'}
+              </span>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # W.O. buttons
+        st.markdown("---")
+        wo1, wo2 = st.columns(2)
+        with wo1:
+            if st.button(f"❌ W.O. de {a_name}", key="wo_a"):
+                _submit(conn, data, a_id, a_name, b_id, b_name,
+                        0, 0, 0, 0, 0, 0, None, None, False, sel_id, my_id, wo="A")
+                return
+        with wo2:
+            if st.button(f"❌ W.O. de {b_name}", key="wo_b"):
+                _submit(conn, data, a_id, a_name, b_id, b_name,
+                        0, 0, 0, 0, 0, 0, None, None, False, sel_id, my_id, wo="B")
+                return
+
+        if st.button("✅ Submeter Resultado", key="submit_res"):
+            winner = _padel_winner(s1a, s1b, s2a, s2b, s3a, s3b)
             if winner is None:
-                st.error("Resultado inválido. Verifica os sets.")
+                st.error("Resultado inválido — completa todos os sets necessários.")
             else:
-                score_a = (1 if s1a > s1b else 0) + (1 if s2a > s2b else 0)
-                score_b = (1 if s1b > s1a else 0) + (1 if s2b > s2a else 0)
-                if s3a: score_a += (1 if s3a > s3b else 0)
-                if s3b: score_b += (1 if s3b > s3a else 0)
-                mid = submit_match(
-                    conn, data, a_id, a_name, b_id, b_name,
-                    score_a, score_b,
-                    s1a, s1b, s2a, s2b, s3a, s3b,
-                    suplente=suplente, challenge_id=sel_id,
-                    submitted_by=my_id
-                )
-                from data_layer import update_challenge_status
-                update_challenge_status(conn, data, sel_id, "played")
-                st.success(f"Resultado submetido! Aguarda confirmação de {b_name}.")
-                st.rerun()
+                _submit(conn, data, a_id, a_name, b_id, b_name,
+                        s1a, s1b, s2a, s2b, s3a or 0, s3b or 0,
+                        s3a, s3b, suplente, sel_id, my_id)
 
-    # ── Timeline ──────────────────────────────────────────────────────────────
+    # ── Timeline ─────────────────────────────────────────────────────────────
     st.markdown("---")
-    section_header("Timeline de Resultados", "📋")
+    section_header("Histórico de Resultados", "📋")
 
     if matches.empty:
         st.info("Sem resultados registados.")
@@ -136,33 +157,76 @@ def render_results(data: dict, conn):
     confirmed = confirmed.sort_values("timestamp", ascending=False)
 
     if confirmed.empty:
-        st.info("Sem resultados confirmados ainda.")
+        st.info("Sem resultados confirmados.")
         return
 
-    for _, m in confirmed.head(20).iterrows():
-        sa = int(m["score_a"] or 0)
-        sb = int(m["score_b"] or 0)
-        winner_name = m["team_a_name"] if sa > sb else m["team_b_name"]
-        sup_tag = ' <span style="color:var(--orange);font-size:0.75rem;">·suplente</span>' if str(m.get("suplente_used","")).upper() == "TRUE" else ""
+    for _, m in confirmed.head(25).iterrows():
+        sa = _safe_int(m.get("score_a", 0))
+        sb = _safe_int(m.get("score_b", 0))
+        s1a_ = str(m.get("set1_a","")).strip()
+        s1b_ = str(m.get("set1_b","")).strip()
+        s2a_ = str(m.get("set2_a","")).strip()
+        s2b_ = str(m.get("set2_b","")).strip()
+        s3a_ = str(m.get("set3_a","")).strip()
+        s3b_ = str(m.get("set3_b","")).strip()
+
+        sets_str = ""
+        for ga, gb in [(s1a_,s1b_),(s2a_,s2b_)]:
+            if ga and gb and ga not in ("0","nan","") and gb not in ("0","nan",""):
+                sets_str += f"  {ga}–{gb}"
+        if s3a_ and s3b_ and s3a_ not in ("0","nan","") and s3b_ not in ("0","nan",""):
+            sets_str += f"  {s3a_}–{s3b_}"
+
+        winner_id  = str(m.get("winner_id",""))
+        winner_name = str(m["team_a_name"] if winner_id == m["team_a_id"] else m["team_b_name"])
+        loser_name  = str(m["team_b_name"] if winner_id == m["team_a_id"] else m["team_a_name"])
+        role_w = "Desafiante" if winner_id == m["team_a_id"] else "Defesa"
         date_str = str(m["timestamp"])[:10]
+        pts = str(m.get("pts_winner",""))
+        sup_tag = " 🔄suplente" if str(m.get("suplente_used","")).upper()=="TRUE" else ""
+
         st.markdown(f"""
-        <div class="match-card animate-slide">
+        <div style="background:#0d1117;border:1px solid #21262d;border-left:3px solid #3fb950;
+             border-radius:10px;padding:12px 16px;margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;">
             <div>
-              <span style="color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:.1em;">{date_str}</span>
-              <div style="margin-top:4px;">
-                <span style="font-family:var(--font-display);font-weight:700;">{m['team_a_name']}</span>
-                <span class="score-big" style="padding:0 8px;color:var(--cyan);">{sa}</span>
-                <span style="color:var(--text-dim);">–</span>
-                <span class="score-big" style="padding:0 8px;color:var(--purple);">{sb}</span>
-                <span style="font-family:var(--font-display);font-weight:700;">{m['team_b_name']}</span>
-                {sup_tag}
+              <div style="color:#8b949e;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;">{date_str}</div>
+              <div style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.1rem;font-weight:700;color:#fff;margin-top:2px;">
+                ⚔️ {m['team_a_name']} <span style="color:#30363d;">vs</span> {m['team_b_name']}
               </div>
+              <div style="font-size:.85rem;color:#27C878;margin-top:4px;font-weight:700;">{sets_str}{sup_tag}</div>
             </div>
             <div style="text-align:right;">
-              <div style="color:var(--green);font-size:0.8rem;font-weight:600;">🏆 {winner_name}</div>
-              <div style="color:var(--text-dim);font-size:0.72rem;">+{m.get('pts_winner',0)} pts</div>
+              <div style="color:#3fb950;font-size:.8rem;font-weight:700;">🏆 {winner_name}</div>
+              <div style="color:#8b949e;font-size:.72rem;">{role_w} · +{pts}pts</div>
             </div>
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+
+def _submit(conn, data, a_id, a_name, b_id, b_name,
+            s1a, s1b, s2a, s2b, s3a, s3b, s3a_raw, s3b_raw,
+            suplente, challenge_id, submitted_by, wo=None):
+    from logic import calc_points
+    if wo == "A":
+        score_a, score_b = 0, 2
+        winner_id, loser_id = b_id, a_id
+        pts_w, pts_l = calc_points(is_challenger=False, suplente=False)
+    elif wo == "B":
+        score_a, score_b = 2, 0
+        winner_id, loser_id = a_id, b_id
+        pts_w, pts_l = calc_points(is_challenger=True, suplente=False)
+    else:
+        score_a = (1 if s1a>s1b else 0)+(1 if s2a>s2b else 0)+(1 if (s3a or 0)>(s3b or 0) and s3a_raw else 0)
+        score_b = (1 if s1b>s1a else 0)+(1 if s2b>s2a else 0)+(1 if (s3b or 0)>(s3a or 0) and s3b_raw else 0)
+        winner_id = a_id if score_a > score_b else b_id
+        loser_id  = b_id if score_a > score_b else a_id
+        pts_w, pts_l = calc_points(is_challenger=(winner_id==a_id), suplente=suplente)
+
+    submit_match(conn, data, a_id, a_name, b_id, b_name,
+                 score_a, score_b, s1a, s1b, s2a, s2b,
+                 s3a_raw, s3b_raw, suplente, challenge_id, submitted_by)
+    update_challenge_status(conn, data, challenge_id, "played")
+    st.success(f"✅ Resultado submetido! Aguarda confirmação.")
+    st.rerun()

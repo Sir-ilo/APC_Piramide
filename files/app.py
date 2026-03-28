@@ -55,13 +55,18 @@ if not st.session_state.get("authenticated"):
 def _load():
     return load_all(conn)
 
+# Force reload when navigating
+if st.session_state.get("_last_page") != st.session_state.get("active_page"):
+    st.cache_data.clear()
+    st.session_state["_last_page"] = st.session_state.get("active_page")
+
 data = _load()
 
 # ── Top bar ────────────────────────────────────────────────────────────────────
 top_left, top_right = st.columns([6, 1])
 with top_left:
     st.markdown(
-        f"<div class='topbar-greeting'>Olá, <span>{st.session_state.team_name}</span> 👋</div>",
+        f"<div class='topbar-greeting'>{'Olá meu Mestre 👑' if st.session_state.get('is_admin') else f'Olá, <span>{st.session_state.team_name}</span> 👋'}</div>",
         unsafe_allow_html=True,
     )
 with top_right:
@@ -92,5 +97,8 @@ elif active == "admin" and st.session_state.get("is_admin"):
 else:
     render_home(data, conn)
 
-# ── Bottom nav bar (always visible, clears view_team_id on tap) ───────────────
+# ── Footer Sir-ILO (all screens) ───────────────────────────────────────────────
+st.markdown('<div style="text-align:center;padding:8px 0 72px;color:#3D4A60;font-size:.68rem;" id="siril-main">Powered by Sir-ILO &copy; 2026</div>', unsafe_allow_html=True)
+
+# ── Bottom nav bar ─────────────────────────────────────────────────────────────
 render_navbar()

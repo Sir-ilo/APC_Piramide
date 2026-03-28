@@ -94,7 +94,7 @@ def render_admin(data: dict, conn):
             st.markdown("---")
             section_header("Reset de Password", "🔑")
             teams_list = {f"{r['team_id']} — {r['team_name']}": r["team_id"]
-                          for _, r in teams.iterrows() if r["team_id"] != "admin"}
+                          for _, r in teams.iterrows()}
             with st.form("rst_pw_f"):
                 p_sel  = st.selectbox("Equipa", list(teams_list.keys()), key="adm_pw_sel")
                 new_pw = st.text_input("Nova Password", type="password")
