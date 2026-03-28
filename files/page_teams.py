@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 from data_layer import assign_categories, save_teams, submit_edit_request
 from logic import is_immune, guardian_remaining, format_guardian_timer
-from components import section_header, rank_card_with_button
+from components import section_header, build_rows_data, render_expandable_cards
 from config import LEVEL_COLORS
 
 
@@ -169,10 +169,6 @@ def render_teams(data: dict, conn):
             ranking_full["team_name"].str.contains(search, case=False, na=False)
         ]
 
-    for _, row in ranking_full.sort_values("position").iterrows():
-        if row["team_id"] == my_id:
-            continue
-        row_dict = row.to_dict()
-        streak   = _safe_int(row_dict.get("streak", 0))
-        tr_row   = tr_map.get(str(row_dict["team_id"]))
-        rank_card_with_button(row_dict, streak, False, tr_row, key_prefix="teams_list")
+    other_teams = ranking_full[ranking_full["team_id"] != my_id]
+    rows_data = build_rows_data(other_teams, teams, trunfos, data.get("matches", __import__("pandas").DataFrame()), my_id)
+    render_expandable_cards(rows_data, my_id, conn, data)

@@ -115,3 +115,5 @@ NAV_ITEMS = [
 ]
 
 ADMIN_ID = "admin"
+
+CATEGORY_ORDER = ["M5","M4","M3","M2","M1"]

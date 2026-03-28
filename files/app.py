@@ -22,7 +22,6 @@ from page_challenges import render_challenges
 from page_teams import render_teams
 from page_results import render_results
 from page_admin import render_admin
-from page_team_detail import render_team_detail
 from components import render_navbar, render_help_modal
 
 # ── Styles ─────────────────────────────────────────────────────────────────────
@@ -98,8 +97,8 @@ else:
     render_home(data, conn)
 
 # ── Footer Sir-ILO with dragon egg (all screens) ──────────────────────────────
-from auth import _render_dragon_egg
-_render_dragon_egg()
+from components import render_dragon_egg
+render_dragon_egg()
 
 # ── Bottom nav bar ─────────────────────────────────────────────────────────────
 render_navbar()

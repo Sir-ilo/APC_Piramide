@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 from data_layer import assign_categories
 from logic import is_immune, guardian_remaining
-from components import rank_card_with_button, nav_to, section_header
+from components import nav_to, section_header, build_rows_data, render_expandable_cards
 from config import LEVEL_COLORS
 
 
@@ -26,11 +26,6 @@ def render_home(data: dict, conn):
         st.info("Sem equipas no ranking. O administrador deve adicionar equipas.")
         return
 
-    # Build trunfos lookup
-    tr_map = {}
-    if not trunfos.empty:
-        for _, tr in trunfos.iterrows():
-            tr_map[str(tr["team_id"])] = tr.to_dict()
 
     # ── Rei da Montanha (M1) ─────────────────────────────────────────────────
     m1 = ranking[ranking["category"] == "M1"]
@@ -65,20 +60,10 @@ def render_home(data: dict, conn):
     m2 = ranking[ranking["category"] == "M2"].head(5)
 
     if m2.empty:
-        st.markdown('<div class="card"><span style="color:var(--text-muted);">Sem equipas em M2.</span></div>',
-                    unsafe_allow_html=True)
+        st.info("Sem equipas em M2.")
     else:
-        for _, row in m2.iterrows():
-            t_row  = teams[teams["team_id"] == row["team_id"]]
-            streak = _safe_int(t_row["streak"].values[0] if not t_row.empty else 0)
-            is_me  = (row["team_id"] == st.session_state.team_id)
-            rdict  = row.to_dict()
-            if not t_row.empty:
-                rdict["player1"]  = t_row["player1"].values[0]
-                rdict["player2"]  = t_row["player2"].values[0]
-                rdict["photo_url"]= t_row["photo_url"].values[0]
-            tr_row = tr_map.get(str(row["team_id"]))
-            rank_card_with_button(rdict, streak, is_me, tr_row, key_prefix="home_m2")
+        rows_data = build_rows_data(m2, teams, trunfos, data.get("matches", __import__("pandas").DataFrame()), my_id)
+        render_expandable_cards(rows_data, my_id, conn, data)
 
     col1, _ = st.columns(2)
     with col1:
