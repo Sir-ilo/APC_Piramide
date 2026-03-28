@@ -3,7 +3,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 from data_layer import assign_categories, save_ranking
-from logic import guardian_remaining, format_guardian_timer, CATEGORY_ORDER
+from logic import guardian_remaining, format_guardian_timer
+from config import CATEGORY_ORDER
 from components import section_header, build_rows_data, render_expandable_cards
 from config import LEVEL_COLORS, CATEGORY_SIZES
 
