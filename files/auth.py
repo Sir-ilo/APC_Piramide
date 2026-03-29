@@ -64,6 +64,7 @@ def render_login(conn):
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
             if st.button("Vamos! 🎾", key="login_btn", use_container_width=True):
+                st.cache_data.clear()
                 data = load_all(conn)
                 user = verify_login(data["teams"], tid, pw)
                 if user:
