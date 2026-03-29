@@ -170,5 +170,6 @@ def render_teams(data: dict, conn):
         ]
 
     other_teams = ranking_full[ranking_full["team_id"] != my_id]
-    rows_data = build_rows_data(other_teams, teams, trunfos, data.get("matches", __import__("pandas").DataFrame()), my_id)
+    matches_df = data.get("matches", pd.DataFrame())
+    rows_data = build_rows_data(other_teams, teams, trunfos, matches_df, my_id)
     render_expandable_cards(rows_data, my_id, conn, data)

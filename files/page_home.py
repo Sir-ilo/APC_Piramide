@@ -62,7 +62,8 @@ def render_home(data: dict, conn):
     if m2.empty:
         st.info("Sem equipas em M2.")
     else:
-        rows_data = build_rows_data(m2, teams, trunfos, data.get("matches", __import__("pandas").DataFrame()), my_id)
+        matches_df = data.get("matches", pd.DataFrame())
+        rows_data = build_rows_data(m2, teams, trunfos, matches_df, my_id)
         render_expandable_cards(rows_data, my_id, conn, data)
 
     col1, _ = st.columns(2)

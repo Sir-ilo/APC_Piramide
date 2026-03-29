@@ -75,13 +75,9 @@ with top_right:
         st.rerun()
 
 # ── Routing ────────────────────────────────────────────────────────────────────
-active      = st.session_state.get("active_page", "home")
-view_team   = st.session_state.get("view_team_id")  # None or a team_id string
+active = st.session_state.get("active_page", "home")
 
-if view_team:
-    # Show back button prominently so user can always escape
-    render_team_detail(data, conn, view_team)
-elif active == "home":
+if active == "home":
     render_home(data, conn)
 elif active == "ranking":
     render_ranking(data, conn)
