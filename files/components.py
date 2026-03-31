@@ -13,8 +13,8 @@ def _safe_int(val, default=0):
 # ─── Easter Egg Dragon (renders on every page) ────────────────────────────────
 def render_dragon_egg():
     """Call once per page render to inject the dragon easter egg JS/CSS."""
-    html = """
-<style>
+    img_src = f"data:image/png;base64,{DRAGON_B64}"
+    css = """<style>
 #dr-ov{display:none;position:fixed;inset:0;z-index:99999;background:#020f02;
   flex-direction:column;align-items:center;justify-content:center;cursor:pointer;}
 #dr-ov.show{display:flex;}
@@ -25,20 +25,22 @@ def render_dragon_egg():
 @keyframes dr-br{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
 .sir-lnk{text-align:center;padding:4px 0 68px;color:#2a3545;font-size:.65rem;
   cursor:pointer;user-select:none;letter-spacing:.05em;}
-</style>
-<div id="dr-ov" onclick="drTouch()">
-  <img id="dr-img" src="data:image/png;base64,""" + DRAGON + """">
-  <div class="dr-lbl">Powered by Sir-ILO &copy; 2026</div>
-  <div id="dr-zzz">💤 Zzz...</div>
-</div>
-<div class="sir-lnk" onclick="sirClick()">Powered by Sir-ILO &copy; 2026</div>
-<script>
+</style>"""
+    body = (
+        f'<div id="dr-ov" onclick="drTouch()">'
+        f'<img id="dr-img" src="{img_src}">'
+        f'<div class="dr-lbl">Powered by Sir-ILO &copy; 2026</div>'
+        f'<div id="dr-zzz">&#128164; Zzz...</div>'
+        f'</div>'
+        f'<div class="sir-lnk" onclick="sirClick()">Powered by Sir-ILO &copy; 2026</div>'
+    )
+    js = """<script>
 (function(){
   var sc=0,st=null,dt=null;
   window.sirClick=function(){
     sc++;clearTimeout(st);
     st=setTimeout(function(){sc=0;},2500);
-    if(sc===3){showMsg("Don't wake the Dragon 🐉");}
+    if(sc===3){showMsg("Don't wake the Dragon");}
     if(sc>=7){sc=0;openDr();}
   };
   window.drTouch=function(){if(dt)resetDt();};
@@ -68,211 +70,8 @@ def render_dragon_egg():
     },3000);
   }
 })();
-</script>
-"""
-    st.markdown(html, unsafe_allow_html=True)
-
-
-# ─── Expandable rank card (pure HTML/JS, no Streamlit button) ─────────────────
-def render_expandable_cards(rows_data: list, my_id: str, conn, data):
-    """
-    rows_data: list of dicts with keys:
-      team_id, team_name, player1, player2, position, category, points,
-      prev_position, guardian_since, immune_until, ready_to_climb,
-      streak, photo_url, trunfos (dict or None), matches (list of dicts)
-    """
-    from logic import (guardian_remaining, is_immune, format_guardian_timer,
-                       level_pill_html, position_arrow, CHALLENGE_WINDOW)
-    from datetime import datetime, timezone
-    import json
-
-    COLORS = {
-        "M1":"#FFD700","M2":"#00E5FF","M3":"#CE93D8",
-        "M4":"#FF9800","M5":"#66BB6A"
-    }
-
-    cards_html = []
-    for row in rows_data:
-        tid    = str(row.get("team_id",""))
-        name   = str(row.get("team_name","") or "")
-        p1     = str(row.get("player1","") or "")
-        p2     = str(row.get("player2","") or "")
-        pos    = _safe_int(row.get("position",0))
-        cat    = str(row.get("category","M5"))
-        pts    = _safe_int(row.get("points",0))
-        streak = _safe_int(row.get("streak",0))
-        photo  = str(row.get("photo_url","") or "")
-        color  = COLORS.get(cat,"#aaa")
-        is_me  = (tid == my_id)
-        tr     = row.get("trunfos") or {}
-
-        # Status badges
-        status_badges = ""
-        rem = guardian_remaining(row)
-        if rem:
-            h,m = int(rem.total_seconds()//3600), int((rem.total_seconds()%3600)//60)
-            status_badges = f'<span style="color:#FF9800;font-size:.75rem;">⏳{h}h{m}m</span>'
-        elif is_immune(row):
-            status_badges = '<span style="color:#00E5FF;font-size:.75rem;">🛡️ Imune</span>'
-        elif str(row.get("ready_to_climb","")).upper()=="TRUE":
-            status_badges = '<span style="color:#27C878;font-size:.75rem;">⚔️ Pronto</span>'
-
-        # Streak
-        sk_html = f'<span style="color:#FF9800;font-weight:700;">🔥{streak}</span>' if streak>0 else ""
-
-        # Trunfos mini
-        def _dot(qty, icon):
-            return icon if _safe_int(qty)>0 else '<span style="opacity:.2">◌</span>'
-        tr_mini = (
-            _dot(tr.get("desforra_qty",0),"🔄") +
-            _dot(tr.get("salto_qty",0),"🦅") +
-            _dot(tr.get("escudo_qty",0),"🛡️")
-        )
-
-        # Position arrow
-        prev = _safe_int(row.get("prev_position", pos))
-        diff = prev - pos
-        if diff > 0:   arr = f'<span style="color:#3fb950;font-size:.75rem;">▲{diff}</span>'
-        elif diff < 0: arr = f'<span style="color:#f85149;font-size:.75rem;">▼{abs(diff)}</span>'
-        else:          arr = '<span style="color:#3D4A60;font-size:.7rem;">—</span>'
-
-        # Avatar
-        if photo:
-            avatar = f'<img src="{photo}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid {color};">' 
-        else:
-            avatar = f'<div style="width:44px;height:44px;border-radius:50%;background:#1c2128;border:2px solid {color};display:flex;align-items:center;justify-content:center;font-size:1.2rem;">🎾</div>'
-
-        border = f"2px solid {color}" if is_me else "1px solid #21262d"
-        bg_glow = f"box-shadow:0 0 18px {color}22;" if is_me else ""
-
-        # Match history (collapsed, show in expand)
-        match_rows = row.get("matches", [])
-        match_html = ""
-        if match_rows:
-            for m in match_rows[:5]:
-                won = str(m.get("winner_id","")) == tid
-                opp = m.get("opp_name","?")
-                sets = m.get("sets_str","")
-                role = m.get("role","")
-                clr  = "#3fb950" if won else "#f85149"
-                lbl  = "V" if won else "D"
-                match_html += (
-                    f'<div style="display:flex;justify-content:space-between;'
-                    f'padding:5px 0;border-bottom:1px solid #21262d;font-size:.78rem;">'
-                    f'<span style="color:{clr};font-weight:700;">{lbl}</span>'
-                    f'&nbsp;<span style="color:#8b949e;">{role} vs {opp}</span>'
-                    f'<span style="color:#6B7A99;">{sets}</span></div>'
-                )
-        else:
-            match_html = '<div style="color:#3D4A60;font-size:.75rem;padding:6px 0;">Sem jogos registados</div>'
-
-        # Trunfos expanded
-        tr_expanded = ""
-        for icon, key, lbl in [("🔄","desforra_qty","Desforra"),("🦅","salto_qty","Salto Fé"),("🛡️","escudo_qty","Escudo")]:
-            qty = _safe_int(tr.get(key,0))
-            clr2 = "#27C878" if qty>0 else "#2a3545"
-            tr_expanded += (
-                f'<div style="text-align:center;background:#0d1117;border:1px solid #21262d;'
-                f'border-radius:10px;padding:8px 4px;">'
-                f'<div style="font-size:1.4rem;">{icon if qty>0 else "🈳"}</div>'
-                f'<div style="font-size:.65rem;color:{clr2};">{lbl}</div>'
-                f'<div style="font-size:.9rem;font-weight:700;color:{clr2};">{qty}×</div>'
-                f'</div>'
-            )
-
-        card_id = f"card_{tid}"
-        safe_name = name.replace("'","\'").replace('"','\"')
-
-        card = f"""
-<div id="{card_id}" onclick="toggleCard(\'{card_id}\')"
-     style="border:{border};border-radius:14px;background:#0d1117;
-            padding:0;margin-bottom:8px;overflow:hidden;cursor:pointer;
-            transition:all .25s ease;{bg_glow}">
-  <!-- COLLAPSED VIEW -->
-  <div class="card-collapsed" style="display:flex;align-items:center;gap:10px;padding:12px 14px;">
-    <div style="font-family:monospace;font-size:1.4rem;font-weight:800;
-         color:{color}55;min-width:28px;text-align:center;">#{pos}</div>
-    {avatar}
-    <div style="flex:1;min-width:0;">
-      <div style="font-weight:700;font-size:.95rem;white-space:nowrap;
-           overflow:hidden;text-overflow:ellipsis;color:#e6edf3;">{name}</div>
-      <div style="font-size:.72rem;color:#6B7A99;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{p1}{" &amp; "+p2 if p2 else ""}</div>
-      <div style="font-size:.75rem;margin-top:3px;">{sk_html}&nbsp;{tr_mini}&nbsp;{status_badges}</div>
-    </div>
-    <div style="text-align:right;flex-shrink:0;">
-      <div style="background:{color}22;border:1px solid {color}55;color:{color};
-           border-radius:99px;padding:1px 8px;font-size:.65rem;font-weight:700;">{cat}</div>
-      <div style="font-size:1.1rem;font-weight:700;color:#8b949e;margin-top:3px;">
-        {pts}<span style="font-size:.6rem;color:#3D4A60;"> pts</span></div>
-      <div style="margin-top:1px;">{arr}</div>
-    </div>
-  </div>
-  <!-- EXPANDED VIEW (hidden by default) -->
-  <div class="card-expanded" style="display:none;padding:0 14px 14px;border-top:1px solid #21262d;">
-    <button onclick="event.stopPropagation();collapseCard(\'{card_id}\')"
-            style="background:none;border:none;color:#6B7A99;cursor:pointer;
-                   font-size:.8rem;padding:6px 0;width:100%;text-align:left;">
-      ▲ Colapsar
-    </button>
-    <!-- Stats row -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0;">
-      <div style="background:#0a0f0a;border:1px solid #21262d;border-radius:10px;
-           padding:8px;text-align:center;">
-        <div style="font-size:.65rem;color:#6B7A99;text-transform:uppercase;letter-spacing:.08em;">Vitórias</div>
-        <div style="font-size:1.3rem;font-weight:800;color:#3fb950;">{_safe_int(row.get("wins",0))}</div>
-      </div>
-      <div style="background:#0a0f0a;border:1px solid #21262d;border-radius:10px;
-           padding:8px;text-align:center;">
-        <div style="font-size:.65rem;color:#6B7A99;text-transform:uppercase;letter-spacing:.08em;">Derrotas</div>
-        <div style="font-size:1.3rem;font-weight:800;color:#f85149;">{_safe_int(row.get("losses",0))}</div>
-      </div>
-      <div style="background:#0a0f0a;border:1px solid #21262d;border-radius:10px;
-           padding:8px;text-align:center;">
-        <div style="font-size:.65rem;color:#6B7A99;text-transform:uppercase;letter-spacing:.08em;">Streak</div>
-        <div style="font-size:1.3rem;font-weight:800;color:#FF9800;">🔥{streak}</div>
-      </div>
-    </div>
-    <!-- Trunfos row -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0;">
-      {tr_expanded}
-    </div>
-    <!-- Match history -->
-    <div style="margin-top:10px;">
-      <div style="font-size:.68rem;color:#6B7A99;text-transform:uppercase;
-           letter-spacing:.1em;margin-bottom:6px;">📜 Últimos Jogos</div>
-      {match_html}
-    </div>
-  </div>
-</div>"""
-        cards_html.append(card)
-
-    # JavaScript for toggle
-    js = """
-<script>
-function toggleCard(id){
-  var el=document.getElementById(id);
-  var exp=el.querySelector('.card-expanded');
-  var col=el.querySelector('.card-collapsed');
-  var isOpen=(exp.style.display!=='none');
-  // Close all
-  document.querySelectorAll('.card-expanded').forEach(function(e){e.style.display='none';});
-  document.querySelectorAll('.card-collapsed').forEach(function(e){e.style.display='flex';});
-  // If was closed, open this one
-  if(!isOpen){
-    exp.style.display='block';
-    col.style.display='none';
-  }
-}
-function collapseCard(id){
-  var el=document.getElementById(id);
-  el.querySelector('.card-expanded').style.display='none';
-  el.querySelector('.card-collapsed').style.display='flex';
-}
 </script>"""
-
-    full_html = "".join(cards_html) + js
-    st.markdown(full_html, unsafe_allow_html=True)
-
+    st.markdown(css + body + js, unsafe_allow_html=True)
 
 # ─── Build rows_data from dataframes ─────────────────────────────────────────
 def build_rows_data(ranking_df, teams_df, trunfos_df, matches_df, my_id):
