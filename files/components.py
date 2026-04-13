@@ -120,6 +120,127 @@ def build_rows_data(ranking_df, teams_df, trunfos_df, matches_df, my_id):
     return rows
 
 
+# ─── Expandable rank cards ────────────────────────────────────────────────────
+def render_expandable_cards(rows_data: list, my_id: str, conn, data):
+    from logic import guardian_remaining, is_immune
+    COLORS = {"M1":"#FFD700","M2":"#00E5FF","M3":"#CE93D8","M4":"#FF9800","M5":"#66BB6A"}
+
+    cards_html = []
+    for row in rows_data:
+        tid    = str(row.get("team_id",""))
+        name   = str(row.get("team_name","") or "")
+        p1     = str(row.get("player1","") or "")
+        p2     = str(row.get("player2","") or "")
+        pos    = _safe_int(row.get("position",0))
+        cat    = str(row.get("category","M5"))
+        pts    = _safe_int(row.get("points",0))
+        streak = _safe_int(row.get("streak",0))
+        photo  = str(row.get("photo_url","") or "")
+        color  = COLORS.get(cat,"#aaa")
+        is_me  = (tid == my_id)
+        tr     = row.get("trunfos") or {}
+        wins   = _safe_int(row.get("wins",0))
+        losses = _safe_int(row.get("losses",0))
+
+        border = f"2px solid {color}" if is_me else "1px solid #21262d"
+        glow   = f"box-shadow:0 0 18px {color}22;" if is_me else ""
+
+        # Status
+        status = ""
+        rem = guardian_remaining(row)
+        if rem:
+            h,m = int(rem.total_seconds()//3600), int((rem.total_seconds()%3600)//60)
+            status = f'<span style="color:#FF9800;font-size:.72rem;">⏳{h}h{m}m</span>'
+        elif is_immune(row):
+            status = '<span style="color:#00E5FF;font-size:.72rem;">🛡️</span>'
+        elif str(row.get("ready_to_climb","")).upper()=="TRUE":
+            status = '<span style="color:#27C878;font-size:.72rem;">⚔️</span>'
+
+        sk = f'<span style="color:#FF9800;font-weight:700;">🔥{streak}</span>' if streak>0 else ""
+
+        def _dot(qty, icon): return icon if _safe_int(qty)>0 else '<span style="opacity:.2">◌</span>'
+        tr_mini = _dot(tr.get("desforra_qty",0),"🔄")+_dot(tr.get("salto_qty",0),"🦅")+_dot(tr.get("escudo_qty",0),"🛡️")
+
+        prev = _safe_int(row.get("prev_position",pos))
+        diff = prev-pos
+        arr = (f'<span style="color:#3fb950;font-size:.72rem;">▲{diff}</span>' if diff>0
+               else f'<span style="color:#f85149;font-size:.72rem;">▼{abs(diff)}</span>' if diff<0
+               else '<span style="color:#3D4A60;font-size:.7rem;">—</span>')
+
+        avatar = (f'<img src="{photo}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid {color};">' 
+                  if photo else
+                  f'<div style="width:42px;height:42px;border-radius:50%;background:#1c2128;border:2px solid {color};display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🎾</div>')
+
+        # Trunfos expanded
+        tr_exp = ""
+        for icon, key, lbl in [("🔄","desforra_qty","Desforra"),("🦅","salto_qty","Salto"),("🛡️","escudo_qty","Escudo")]:
+            qty = _safe_int(tr.get(key,0))
+            clr = "#27C878" if qty>0 else "#2a3545"
+            tr_exp += (f'<div style="text-align:center;background:#0d1117;border:1px solid #21262d;border-radius:10px;padding:8px 4px;">'
+                       f'<div style="font-size:1.3rem;">{icon if qty>0 else "🈳"}</div>'
+                       f'<div style="font-size:.65rem;color:{clr};">{lbl}</div>'
+                       f'<div style="font-size:.9rem;font-weight:700;color:{clr};">{qty}×</div></div>')
+
+        # Match history
+        match_html = ""
+        for m in row.get("matches",[])[:5]:
+            won = str(m.get("winner_id",""))==tid
+            clr = "#3fb950" if won else "#f85149"
+            lbl_m = "V" if won else "D"
+            match_html += (f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #21262d;font-size:.78rem;">'
+                           f'<span style="color:{clr};font-weight:700;">{lbl_m}</span>&nbsp;'
+                           f'<span style="color:#8b949e;">{m.get("role","?")} vs {m.get("opp_name","?")}</span>'
+                           f'<span style="color:#6B7A99;">{m.get("sets_str","")}</span></div>')
+        if not match_html:
+            match_html = '<div style="color:#3D4A60;font-size:.75rem;padding:6px 0;">Sem jogos</div>'
+
+        cid = f"c_{tid}"
+        card = (
+            f'<div id="{cid}" onclick="toggleCard(\'{cid}\')" style="border:{border};border-radius:14px;background:#0d1117;padding:0;margin-bottom:8px;overflow:hidden;cursor:pointer;{glow}">'
+            f'<div class="cc" style="display:flex;align-items:center;gap:10px;padding:12px 14px;">'
+            f'<div style="font-size:1.4rem;font-weight:800;color:{color}55;min-width:26px;text-align:center;">#{pos}</div>'
+            f'{avatar}'
+            f'<div style="flex:1;min-width:0;">'
+            f'<div style="font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e6edf3;">{name}</div>'
+            f'<div style="font-size:.72rem;color:#6B7A99;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{p1}{" &amp; "+p2 if p2 else ""}</div>'
+            f'<div style="font-size:.75rem;margin-top:3px;">{sk}&nbsp;{tr_mini}&nbsp;{status}</div>'
+            f'</div>'
+            f'<div style="text-align:right;flex-shrink:0;">'
+            f'<div style="background:{color}22;border:1px solid {color}55;color:{color};border-radius:99px;padding:1px 8px;font-size:.65rem;font-weight:700;">{cat}</div>'
+            f'<div style="font-size:1.05rem;font-weight:700;color:#8b949e;margin-top:2px;">{pts}<span style="font-size:.6rem;color:#3D4A60;"> pts</span></div>'
+            f'<div>{arr}</div></div></div>'
+            f'<div class="ce" style="display:none;padding:0 14px 14px;border-top:1px solid #21262d;">'
+            f'<button onclick="event.stopPropagation();collapseCard(\'{cid}\')" style="background:none;border:none;color:#6B7A99;cursor:pointer;font-size:.8rem;padding:6px 0;width:100%;text-align:left;">▲ Colapsar</button>'
+            f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0;">'
+            f'<div style="background:#0a0f0a;border:1px solid #21262d;border-radius:10px;padding:8px;text-align:center;"><div style="font-size:.65rem;color:#6B7A99;text-transform:uppercase;">Vitórias</div><div style="font-size:1.3rem;font-weight:800;color:#3fb950;">{wins}</div></div>'
+            f'<div style="background:#0a0f0a;border:1px solid #21262d;border-radius:10px;padding:8px;text-align:center;"><div style="font-size:.65rem;color:#6B7A99;text-transform:uppercase;">Derrotas</div><div style="font-size:1.3rem;font-weight:800;color:#f85149;">{losses}</div></div>'
+            f'<div style="background:#0a0f0a;border:1px solid #21262d;border-radius:10px;padding:8px;text-align:center;"><div style="font-size:.65rem;color:#6B7A99;text-transform:uppercase;">Streak</div><div style="font-size:1.3rem;font-weight:800;color:#FF9800;">🔥{streak}</div></div>'
+            f'</div>'
+            f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0;">{tr_exp}</div>'
+            f'<div style="margin-top:10px;"><div style="font-size:.68rem;color:#6B7A99;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">📜 Últimos Jogos</div>{match_html}</div>'
+            f'</div></div>'
+        )
+        cards_html.append(card)
+
+    js = """<script>
+function toggleCard(id){
+  var el=document.getElementById(id);
+  var ce=el.querySelector('.ce'),cc=el.querySelector('.cc');
+  var open=(ce.style.display!=='none');
+  document.querySelectorAll('.ce').forEach(function(e){e.style.display='none';});
+  document.querySelectorAll('.cc').forEach(function(e){e.style.display='flex';});
+  if(!open){ce.style.display='block';cc.style.display='none';}
+}
+function collapseCard(id){
+  var el=document.getElementById(id);
+  el.querySelector('.ce').style.display='none';
+  el.querySelector('.cc').style.display='flex';
+}
+</script>"""
+
+    st.markdown("".join(cards_html)+js, unsafe_allow_html=True)
+
+
 # ─── Bottom nav bar ───────────────────────────────────────────────────────────
 def render_navbar():
     active = st.session_state.get("active_page","home")
